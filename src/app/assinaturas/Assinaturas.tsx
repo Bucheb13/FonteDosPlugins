@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
 import { criarSupabaseNavegador } from "@/lib/supabase-navegador";
-import { CyberToast } from "@/components/CyberToast"; // ajuste o caminho conforme sua pasta
+import { CyberToast } from "@/components/CyberToast";
 
 /* =======================
    TIPOS
@@ -44,14 +44,13 @@ function isAssinaturaInfo(data: unknown): data is AssinaturaInfo {
   );
 }
 
-/* =======================
-   COMPONENTE
-======================= */
 export default function PaginaAssinaturas() {
   const router = useRouter();
-  const supabase = criarSupabaseNavegador();
+  const supabase = useMemo(() => criarSupabaseNavegador(), []);
 
   const [user, setUser] = useState<User | null>(null);
+  const [authChecado, setAuthChecado] = useState(false);
+
   const [assinatura, setAssinatura] = useState<AssinaturaInfo | null>(null);
   const [loadingPlano, setLoadingPlano] = useState<Record<string, boolean>>({});
   const [cpf, setCpf] = useState("");
@@ -71,17 +70,59 @@ export default function PaginaAssinaturas() {
   const removeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
   /* =======================
-     AUTH
+     AUTH ROBUSTO
+     - Usa getSession (restaura rápido)
+     - Só redireciona depois da checagem
+     - Escuta mudanças de auth (login/logout)
   ======================== */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-  }, [supabase]);
+    let ativo = true;
+
+    async function initAuth() {
+      // 1) sessão local (rápido, evita redirect “à toa”)
+      const { data: sess } = await supabase.auth.getSession();
+      if (!ativo) return;
+
+      const u = sess.session?.user ?? null;
+      setUser(u);
+      setAuthChecado(true);
+
+      if (!u) {
+        router.replace("/login?redirect=/assinaturas");
+        return;
+      }
+
+      // 2) opcional: valida/atualiza user no servidor
+      // (não é obrigatório pro funcionamento, mas melhora consistência)
+      supabase.auth.getUser().then(({ data }) => {
+        if (!ativo) return;
+        setUser(data.user ?? u);
+      });
+    }
+
+    initAuth();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!ativo) return;
+      const u = session?.user ?? null;
+      setUser(u);
+
+      // se deslogar enquanto está na página
+      if (!u) router.replace("/login?redirect=/assinaturas");
+    });
+
+    return () => {
+      ativo = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [supabase, router]);
 
   /* =======================
      BUSCAR ASSINATURA
   ======================== */
   useEffect(() => {
     if (!user) return;
+
     supabase
       .from("assinaturas")
       .select("status, tipo, periodo_fim")
@@ -97,10 +138,12 @@ export default function PaginaAssinaturas() {
 
   /* =======================
      REALTIME — ASSINATURAS
+     - Continua funcionando com webhook:
+       webhook atualiza a tabela -> realtime recebe
   ======================== */
   useEffect(() => {
     if (!user) return;
-  
+
     const channel = supabase
       .channel(`assinaturas-${user.id}`)
       .on(
@@ -112,32 +155,41 @@ export default function PaginaAssinaturas() {
           filter: `usuario_id=eq.${user.id}`,
         },
         (payload) => {
-          if (payload.new && isAssinaturaInfo(payload.new) && payload.new.status === "ativa") {
+          // payload.new vem do banco (incluindo update via webhook)
+          if (payload.new && isAssinaturaInfo(payload.new)) {
             setAssinatura(payload.new);
-            addToast("Assinatura ativada!", "success");
-  
-            // Fecha o modal PIX automaticamente
-            setPixUrl(null);
-            setPixCopiaCola(null);
+
+            if (payload.new.status === "ativa") {
+              addToast("Assinatura ativada!", "success");
+              setPixUrl(null);
+              setPixCopiaCola(null);
+            }
           }
         }
       )
       .subscribe();
-  
-    // CORREÇÃO: função de limpeza deve ser void
+
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [user, supabase]);
-  
-  
-  
+
+  /* =======================
+     ASSINATURA VÁLIDA
+  ======================== */
+  const assinaturaValida = useMemo(() => {
+    if (!assinatura) return false;
+    return assinatura.status === "ativa" && new Date(assinatura.periodo_fim) >= new Date();
+  }, [assinatura]);
 
   /* =======================
      PAGAR
   ======================== */
   const pagar = async (tipo: Tipo) => {
-    if (!user) return router.push("/login");
+    if (!user) {
+      router.push("/login?redirect=/assinaturas");
+      return;
+    }
 
     const cpfLimpo = cpf.replace(/\D/g, "");
     if (cpfLimpo.length !== 11) {
@@ -156,7 +208,8 @@ export default function PaginaAssinaturas() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           usuario_id: user.id,
-          nome: user.user_metadata?.nome ?? "Cliente",
+          // use display_name (se você salva assim no login) e faz fallback:
+          nome: user.user_metadata?.display_name ?? user.user_metadata?.nome ?? "Cliente",
           email: user.email,
           cpf: cpfLimpo,
           valor: tipo.valor,
@@ -178,16 +231,19 @@ export default function PaginaAssinaturas() {
   };
 
   /* =======================
-     ASSINATURA VÁLIDA
-  ======================== */
-  const assinaturaValida = useMemo(() => {
-    if (!assinatura) return false;
-    return assinatura.status === "ativa" && new Date(assinatura.periodo_fim) >= new Date();
-  }, [assinatura]);
-
-  /* =======================
      RENDER
   ======================== */
+  if (!authChecado) {
+    return (
+      <section className="mx-auto max-w-6xl px-4 py-16 text-center text-white/70">
+        Carregando...
+      </section>
+    );
+  }
+
+  // se não tem user, o effect já redireciona
+  if (!user) return null;
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-16">
       {/* Toasts */}
@@ -232,11 +288,16 @@ export default function PaginaAssinaturas() {
             {tipos.map((tipo) => (
               <div
                 key={tipo.id}
-                className={`rounded-3xl p-8 border ${planoSelecionado === tipo.id ? "border-cyan-400 bg-black/30 shadow-[0_0_20px_cyan]" : "bg-black/20"}`}
+                className={`rounded-3xl p-8 border ${
+                  planoSelecionado === tipo.id
+                    ? "border-cyan-400 bg-black/30 shadow-[0_0_20px_cyan]"
+                    : "bg-black/20"
+                }`}
               >
                 <h2 className="text-2xl text-cyan-400">{tipo.nome}</h2>
                 <p className="text-3xl text-white mt-3">{tipo.preco}</p>
                 <p className="text-white/70 mt-2">{tipo.descricao}</p>
+
                 <button
                   onClick={() => pagar(tipo)}
                   disabled={loadingPlano[tipo.id]}
@@ -255,16 +316,28 @@ export default function PaginaAssinaturas() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-zinc-900 rounded-3xl p-6 w-full max-w-md text-center border border-cyan-400 shadow-lg">
             <h3 className="text-xl font-semibold text-cyan-400 mb-4">Pague com PIX</h3>
-            <img src={pixUrl} alt="QR Code PIX" className="mx-auto mb-4 rounded-lg bg-white p-2"/>
-            <textarea readOnly value={pixCopiaCola} className="w-full bg-black/20 text-white p-3 rounded-lg text-sm mb-4" rows={4}/>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pixUrl} alt="QR Code PIX" className="mx-auto mb-4 rounded-lg bg-white p-2" />
+            <textarea
+              readOnly
+              value={pixCopiaCola}
+              className="w-full bg-black/20 text-white p-3 rounded-lg text-sm mb-4"
+              rows={4}
+            />
             <button
-              onClick={() => { navigator.clipboard.writeText(pixCopiaCola); addToast("Código PIX copiado!", "success"); }}
+              onClick={() => {
+                navigator.clipboard.writeText(pixCopiaCola);
+                addToast("Código PIX copiado!", "success");
+              }}
               className="w-full mb-3 border border-green-500 text-green-400 rounded-lg py-2 font-semibold hover:text-white hover:shadow-[0_0_15px_green] transition"
             >
               Copiar código PIX
             </button>
             <button
-              onClick={() => { setPixUrl(null); setPixCopiaCola(null); }}
+              onClick={() => {
+                setPixUrl(null);
+                setPixCopiaCola(null);
+              }}
               className="w-full text-red-400 border border-red-400 py-2 rounded-lg hover:text-white hover:shadow-[0_0_15px_red] transition font-semibold"
             >
               Fechar

@@ -1,0 +1,299 @@
+/* From Uiverse.io by StealthWorm */
+.btn {
+  position: relative; /* ✅ faltava isso */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  width: 15rem;        /* ✅ em vez de 13rem */
+  height: 3rem;    /* opcional: mais premium */
+  overflow: hidden;
+
+  background-size: 300% 300%;
+  cursor: pointer;
+  backdrop-filter: blur(1rem);
+  border-radius: 5rem;
+  transition: 0.5s;
+  animation: gradient_301 5s ease infinite;
+
+  border: double 4px transparent;
+  background-image: linear-gradient(#212121, #212121),
+    linear-gradient(
+      137.48deg,
+      #ffdb3b 10%,
+      #fe53bb 45%,
+      #8f51ea 67%,
+      #0044ff 87%
+    );
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+}
+
+#container-stars {
+  position: absolute;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transition: 0.5s;
+  backdrop-filter: blur(1rem);
+  border-radius: 5rem;
+}
+
+strong {
+  z-index: 2;
+  font-family: "Avalors Personal Use";
+  font-size: 18px;
+  letter-spacing: 5px;
+  color: #ffffff;
+  text-shadow: 0 0 4px white;
+}
+
+#glow {
+  position: absolute;
+  display: flex;
+  width: 12rem;
+}
+
+.circle {
+  width: 100%;
+  height: 30px;
+  filter: blur(2rem);
+  animation: pulse_3011 4s infinite;
+  z-index: -1;
+}
+
+.circle:nth-of-type(1) {
+  background: rgba(254, 83, 186, 0.636);
+}
+
+.circle:nth-of-type(2) {
+  background: rgba(142, 81, 234, 0.704);
+}
+
+.btn:hover #container-stars {
+  z-index: 1;
+  background-color: #212121;
+}
+
+.btn:hover {
+  transform: scale(1.1);
+}
+
+.btn:active {
+  border: double 4px #fe53bb;
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+  animation: none;
+}
+
+.btn:active .circle {
+  background: #fe53bb;
+}
+
+#stars {
+  position: relative;
+  background: transparent;
+  width: 200rem;
+  height: 200rem;
+}
+
+#stars::after {
+  content: "";
+  position: absolute;
+  top: -10rem;
+  left: -100rem;
+  width: 100%;
+  height: 100%;
+  animation: animStarRotate 90s linear infinite;
+}
+
+#stars::after {
+  background-image: radial-gradient(#ffffff 1px, transparent 1%);
+  background-size: 50px 50px;
+}
+
+#stars::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 170%;
+  height: 500%;
+  animation: animStar 60s linear infinite;
+}
+
+#stars::before {
+  background-image: radial-gradient(#ffffff 1px, transparent 1%);
+  background-size: 50px 50px;
+  opacity: 0.5;
+}
+
+@keyframes animStar {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-135rem);
+  }
+}
+
+@keyframes animStarRotate {
+  from {
+    transform: rotate(360deg);
+  }
+
+  to {
+    transform: rotate(0);
+  }
+}
+
+@keyframes gradient_301 {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse_3011 {
+  0% {
+    transform: scale(0.75);
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+  }
+
+  100% {
+    transform: scale(0.75);
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+/* ===== Loader (Uiverse.io by andrew-manzyk) — renomeado p/ não conflitar ===== */
+.download-loader2 {
+  --color-one: #ffbf48;
+  --color-two: #be4a1d;
+  --color-three: #ffbf4780;
+  --color-four: #bf4a1d80;
+  --color-five: #ffbf4740;
+  --time-animation: 2s;
+  --size: 0.85;
+  position: relative;
+  border-radius: 50%;
+  transform: scale(var(--size));
+  box-shadow:
+    0 0 25px 0 var(--color-three),
+    0 20px 50px 0 var(--color-four);
+  animation: dl2-colorize calc(var(--time-animation) * 3) ease-in-out infinite;
+}
+
+.download-loader2::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border-top: solid 1px var(--color-one);
+  border-bottom: solid 1px var(--color-two);
+  background: linear-gradient(180deg, var(--color-five), var(--color-four));
+  box-shadow:
+    inset 0 10px 10px 0 var(--color-three),
+    inset 0 -10px 10px 0 var(--color-four);
+}
+
+.download-loader2 .dl2-box {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(180deg, var(--color-one) 30%, var(--color-two) 70%);
+  mask: url(#dl2-clipping);
+  -webkit-mask: url(#dl2-clipping);
+}
+
+.download-loader2 svg {
+  position: absolute;
+}
+
+.download-loader2 svg #dl2-clipping {
+  filter: contrast(15);
+  animation: dl2-roundness calc(var(--time-animation) / 2) linear infinite;
+}
+
+.download-loader2 svg #dl2-clipping polygon {
+  filter: blur(7px);
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(1) {
+  transform-origin: 75% 25%;
+  transform: rotate(90deg);
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(2) {
+  transform-origin: 50% 50%;
+  animation: dl2-rotation var(--time-animation) linear infinite reverse;
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(3) {
+  transform-origin: 50% 60%;
+  animation: dl2-rotation var(--time-animation) linear infinite;
+  animation-delay: calc(var(--time-animation) / -3);
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(4) {
+  transform-origin: 40% 40%;
+  animation: dl2-rotation var(--time-animation) linear infinite reverse;
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(5) {
+  transform-origin: 40% 40%;
+  animation: dl2-rotation var(--time-animation) linear infinite reverse;
+  animation-delay: calc(var(--time-animation) / -2);
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(6) {
+  transform-origin: 60% 40%;
+  animation: dl2-rotation var(--time-animation) linear infinite;
+}
+
+.download-loader2 svg #dl2-clipping polygon:nth-child(7) {
+  transform-origin: 60% 40%;
+  animation: dl2-rotation var(--time-animation) linear infinite;
+  animation-delay: calc(var(--time-animation) / -1.5);
+}
+
+@keyframes dl2-rotation {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dl2-roundness {
+  0% { filter: contrast(15); }
+  20% { filter: contrast(3); }
+  40% { filter: contrast(3); }
+  60% { filter: contrast(15); }
+  100% { filter: contrast(15); }
+}
+
+@keyframes dl2-colorize {
+  0% { filter: hue-rotate(0deg); }
+  20% { filter: hue-rotate(-30deg); }
+  40% { filter: hue-rotate(-60deg); }
+  60% { filter: hue-rotate(-90deg); }
+  80% { filter: hue-rotate(-45deg); }
+  100% { filter: hue-rotate(0deg); }
+}

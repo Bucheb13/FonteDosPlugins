@@ -14,7 +14,14 @@ export async function criarSupabaseServidor() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(_cookiesToSet) {
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            });
+          } catch {
+            // Em alguns contextos server component os cookies sao read-only.
+          }
         },
       },
     }

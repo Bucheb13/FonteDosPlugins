@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
 import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (senha !== process.env.SENHA_ADMIN) {
-    return NextResponse.json({ erro: "Acesso negado." }, { status: 401 });
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
 
   const supabase = criarSupabaseAdmin();
 
   const { data, error } = await supabase
     .from("daws")
-    .select(`
+    .select(
+      `
       id,
       slug,
       nome,
@@ -21,8 +21,10 @@ export async function GET(req: Request) {
       descricao,
       tipo_instalacao,
       conteudo_instalacao,
-      ativo
-    `)
+      ativo,
+      criado_em
+    `
+    )
     .order("criado_em", { ascending: false });
 
   if (error) {

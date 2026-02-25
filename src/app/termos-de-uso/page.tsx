@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Termos de Uso | FonteDosPlugins",
   description:
     "Leia os Termos de Uso do FonteDosPlugins. Entenda as regras, responsabilidades, direitos autorais e políticas de uso do site.",
+  alternates: {
+    canonical: "/termos-de-uso",
+  },
+  openGraph: {
+    title: "Termos de Uso | FonteDosPlugins",
+    description: "Entenda as regras, responsabilidades, direitos autorais e políticas de uso do site.",
+    url: absoluteUrl("/termos-de-uso"),
+    type: "article",
+  },
 };
 
 export default function TermosDeUso() {

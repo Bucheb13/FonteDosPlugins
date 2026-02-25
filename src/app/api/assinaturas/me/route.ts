@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { criarSupabaseServidor } from "@/lib/supabase-servidor";
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const supabase = await criarSupabaseServidor();
 
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
 
     return NextResponse.json({ assinatura: data });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ erro: "Erro ao buscar assinatura" }, { status: 500 });
   }
 }

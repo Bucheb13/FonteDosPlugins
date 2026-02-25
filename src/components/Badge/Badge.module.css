@@ -1,0 +1,72 @@
+@keyframes eclipse {
+  0% {
+    transform: translateX(110%);
+  }
+  100% {
+    transform: translateX(-110%);
+  }
+}
+
+.root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* camada glow por fora */
+.glowWrap {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+.eclipse {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+
+  background: white;
+  filter: blur(2px);
+  transform: translateX(50%);
+  animation: eclipse 3s linear infinite;
+}
+
+/* glow “bonito” (mask) */
+.glow {
+  background-image:
+    radial-gradient(circle at 50% 50%, transparent, black),
+    linear-gradient(white, white);
+}
+
+/* pill principal */
+.pill {
+  position: relative;
+  border-radius: 999px;
+  overflow: hidden;
+
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 300;
+
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* conteúdo interno (margem do “m-[2px]” + bg preto) */
+.inner {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+
+  margin: 2px;
+  padding: 6px 16px;
+  border-radius: 999px;
+
+  background: rgba(0, 0, 0, 0.95);
+}

@@ -1,46 +1,68 @@
+﻿import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import ProgramaClient from "./ProgramaClient";
-import type { Metadata } from "next";
+import { criarSupabaseAdmin } from "@/lib/supabase-admin";
+import { absoluteUrl } from "@/lib/site-url";
 
-/* =========================
-   SEO DINÂMICO
-========================= */
-export async function generateMetadata(
-  { params }: { params: Promise<{ slug: string }> }
-): Promise<Metadata> {
+type ProgramaSeo = {
+  slug: string;
+  nome: string;
+  subtitulo: string | null;
+  imagem_capa_url: string | null;
+};
 
-  const { slug } = await params; // ✅ OBRIGATÓRIO
+async function obterPrograma(slug: string): Promise<ProgramaSeo | null> {
+  const supabase = criarSupabaseAdmin();
+  const { data } = await supabase
+    .from("programas")
+    .select("slug, nome, subtitulo, imagem_capa_url")
+    .eq("slug", slug)
+    .eq("ativo", true)
+    .maybeSingle();
 
-  console.log("SLUG NO METADATA:", slug);
+  return (data as ProgramaSeo | null) ?? null;
+}
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL}/api/programas?slug=${slug}`,
-    { cache: "no-store" }
-  );
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const programa = await obterPrograma(slug);
 
-  if (!res.ok) {
+  if (!programa) {
     return {
-      title: "Programa não encontrado | Fonte dos Plugins",
-      description: "Este Programa não está disponível.",
+      title: "Programa não encontrado | FonteDosPlugins",
+      description: "Este programa não está disponível.",
+      robots: { index: false, follow: false },
     };
   }
 
-  const { programa } = await res.json();
+  const title = `${programa.nome} | Download Programa | FonteDosPlugins`;
+  const description = programa.subtitulo?.trim() || `Baixe ${programa.nome} agora.`;
+  const canonical = `/programas/${programa.slug}`;
 
   return {
-    title: `${programa.nome} | Download Programa | Fonte dos Plugins`,
-    description: programa.subtitulo ?? `Baixe ${programa.nome} agora.`,
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: absoluteUrl(canonical),
+      type: "article",
+      images: programa.imagem_capa_url ? [{ url: programa.imagem_capa_url }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: programa.imagem_capa_url ? [programa.imagem_capa_url] : undefined,
+    },
   };
 }
 
-/* =========================
-   PAGE (SERVER)
-========================= */
-export default async function Page(
-  { params }: { params: Promise<{ slug: string }> }
-) {
-  const { slug } = await params; // ✅ ESSENCIAL
-
-  console.log("SLUG NO PAGE:", slug);
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const programa = await obterPrograma(slug);
+  if (!programa) notFound();
 
   return <ProgramaClient slug={slug} />;
 }

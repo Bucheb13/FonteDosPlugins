@@ -1,0 +1,89 @@
+.link {
+  --border-right: 4px;
+  --text-stroke-color: rgba(255, 255, 255, 0.6);
+  --animation-color: #37ff8b;
+  --fs-size: 0.85em;
+
+  position: relative;
+  display: inline-block;
+
+  font-family: Arial, sans-serif;
+  font-size: var(--fs-size);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+
+  cursor: pointer;
+
+  /* importante pro efeito não quebrar */
+  white-space: nowrap;
+
+  color: transparent;
+  -webkit-text-stroke: 0.75px var(--text-stroke-color);
+}
+
+.actualText {
+  pointer-events: none;
+  display: inline-block;
+}
+
+.hoverText {
+  position: absolute;
+  inset: 0;
+
+  width: 0;              /* ✅ */
+  overflow: hidden;
+  box-sizing: border-box;
+
+  display: inline-block; /* alinha com actualText */
+  white-space: nowrap;
+
+  color: var(--animation-color);
+  border-right: var(--border-right) solid var(--animation-color);
+
+  transition: width 0.4s ease;
+  -webkit-text-stroke: 0.75px var(--animation-color);
+
+  pointer-events: none;
+}
+
+/* hover */
+.link:hover .hoverText {
+  width: 100%;
+  filter: drop-shadow(0 0 18px var(--animation-color));
+}
+
+/* ativo (rota atual) */
+.link.active .hoverText {
+  width: 100%;
+  filter: drop-shadow(0 0 18px var(--animation-color));
+}
+
+/* foco por teclado */
+.link:focus-visible .hoverText {
+  width: 100%;
+  filter: drop-shadow(0 0 18px var(--animation-color));
+}
+
+/* mobile: sem hover */
+@media (hover: none) {
+  .hoverText {
+    width: 100%;
+    border-right: none;
+    filter: none;
+  }
+}
+
+/* ✅ classe active “real” (CSS Modules precisa existir) */
+.active {
+  /* opcional: deixa o stroke mais “forte” quando ativo */
+  --text-stroke-color: rgba(255, 255, 255, 0.85);
+}
+.link.active .hoverText {
+  border-right: none;
+}

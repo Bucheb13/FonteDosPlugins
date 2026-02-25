@@ -1,0 +1,136 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* não atrapalha clique */
+}
+
+/* use no CTA: className="group" e aqui pegamos o hover */
+.wrapHover {
+  pointer-events: none;
+}
+
+/* CARD */
+.card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* no original tinha width/height e sem radius; aqui adaptado pro CTA */
+  border-radius: 32px;
+  overflow: hidden;
+
+  /* no original era #f00 (só pra debug). Mantemos transparente */
+  background: transparent;
+}
+
+/* GRADIENTE (igual original) */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(315deg, #03a9f4, #ff0058);
+}
+
+/* GLOW BLUR (igual original: blur 30px) */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(315deg, #03a9f4, #ff0058);
+  filter: blur(30px);
+  opacity: 1; /* original não tinha opacity */
+}
+
+/* PAINEL ESCURO INTERNO */
+.card b {
+  position: absolute;
+  inset: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2;
+
+  /* adaptação pro CTA: arredonda pra acompanhar o radius externo */
+  border-radius: 26px;
+}
+
+/* IMAGEM (mantém idêntico ao original) */
+.card img {
+  position: absolute;
+  z-index: 3;
+  scale: 0.8;
+  opacity: 0.25;
+  transition: 0.5s;
+  will-change: transform, opacity;
+}
+
+/* HOVER — use .wrapHover:hover OU .group:hover (mais abaixo) */
+.wrapHover:hover .card img,
+.group:hover .card img {
+  scale: 0.5;
+  opacity: 0.9;
+  transform: translateY(-70px);
+}
+
+/* CONTENT */
+.card .content {
+  position: absolute;
+  z-index: 3;
+  bottom: 25px;              /* deixa já na posição “aberta” */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  /* ✅ você pediu: frases SEMPRE visíveis */
+  transform: scale(1);
+  transition: 0.5s;
+}
+
+/* TIPOGRAFIA — igual original */
+.content .title {
+  position: relative;
+  color: #fff;
+  font-weight: 500;
+  line-height: 1em;
+  font-size: 1em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.content .title span {
+  font-weight: 300;
+  font-size: 0.7em;
+}
+
+/* social (se usar) */
+.content .sci {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.sci li { list-style: none; }
+
+.sci li a {
+  position: relative;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.2);
+  fill: currentColor;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 4px;
+  transition: 0.5s;
+}
+
+.sci li a:hover {
+  fill: currentColor;
+  color: rgba(255, 255, 255, 1);
+}

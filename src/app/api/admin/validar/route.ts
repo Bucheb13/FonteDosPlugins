@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
 
 export async function GET(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (!senha || senha !== process.env.SENHA_ADMIN) {
-    return NextResponse.json({ ok: false, erro: "Acesso negado." }, { status: 401 });
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
 
   return NextResponse.json({ ok: true });
 }

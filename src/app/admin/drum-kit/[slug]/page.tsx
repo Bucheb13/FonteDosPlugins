@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAdmin } from "@/components/admin/admin-contexto";
 
-type TipoInstalacao = "video" | "texto";
+type TipoInstalacao = "video" | "texto" | null;
+
+type CategoriaDrumKit = "drum-kit" | "sample-kit" | "midi-kit";
 
 type DrumKit = {
   id: string;
@@ -12,12 +14,18 @@ type DrumKit = {
   nome: string;
   subtitulo: string | null;
   descricao: string | null;
+
+  // ✅ pode ser null (sem instalação)
   tipo_instalacao: TipoInstalacao;
   conteudo_instalacao: string | null;
+
   imagem_capa_url: string | null;
   r2_chave_arquivo: string | null;
-  ativo: boolean | null; // pode vir null do banco
+
+  ativo: boolean | null;
   criado_em: string;
+
+  categoria: CategoriaDrumKit | null;
 };
 
 async function lerJsonComSeguranca(res: Response) {
@@ -32,15 +40,15 @@ async function lerJsonComSeguranca(res: Response) {
 function isYoutubeUrl(url: string) {
   try {
     const u = new URL(url);
-    return (
-      u.hostname.includes("youtube.com") ||
-      u.hostname.includes("youtu.be")
-    );
+    return u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be");
   } catch {
     return false;
   }
 }
 
+function normalizarCategoria(v: unknown): CategoriaDrumKit {
+  return v === "sample-kit" || v === "midi-kit" ? v : "drum-kit";
+}
 
 export default function PaginaAdminEditarDrumKit() {
   const { senhaAdmin, setMensagem } = useAdmin();
@@ -61,8 +69,11 @@ export default function PaginaAdminEditarDrumKit() {
   const [subtitulo, setSubtitulo] = useState("");
   const [ativo, setAtivo] = useState<boolean>(true);
   const [descricao, setDescricao] = useState("");
-  const [tipoInstalacao, setTipoInstalacao] = useState<TipoInstalacao>("video");
+
+  const [tipoInstalacao, setTipoInstalacao] = useState<TipoInstalacao>(null);
   const [conteudoInstalacao, setConteudoInstalacao] = useState("");
+
+  const [categoria, setCategoria] = useState<CategoriaDrumKit>("drum-kit");
 
   // arquivos
   const [capaNova, setCapaNova] = useState<File | null>(null);
@@ -115,16 +126,18 @@ export default function PaginaAdminEditarDrumKit() {
 
     setCarregando(true);
 
-    const res = await fetch(`/api/admin/drum-kit/obter?slug=${encodeURIComponent(slug)}`, {
-      headers: { "x-senha-admin": senhaAdmin },
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `/api/admin/drum-kit/obter?slug=${encodeURIComponent(slug)}`,
+      {
+        headers: { "x-senha-admin": senhaAdmin },
+        cache: "no-store",
+      }
+    );
 
     const json = await lerJsonComSeguranca(res);
     setCarregando(false);
 
     if (!res.ok) {
-      
       setMensagem(json?.erro ?? "Falha ao carregar drumKit.");
       return;
     }
@@ -136,10 +149,12 @@ export default function PaginaAdminEditarDrumKit() {
       setNome(p.nome ?? "");
       setSubtitulo(p.subtitulo ?? "");
       setDescricao(p.descricao ?? "");
-      setTipoInstalacao(p.tipo_instalacao ?? "video");
-      setConteudoInstalacao(p.conteudo_instalacao ?? "");
-      setAtivo(p.ativo ?? true);
 
+      setTipoInstalacao(p.tipo_instalacao ?? null);
+      setConteudoInstalacao(p.conteudo_instalacao ?? "");
+
+      setAtivo(p.ativo ?? true);
+      setCategoria(normalizarCategoria(p.categoria));
     }
   }, [adminOk, senhaAdmin, setMensagem, slug]);
 
@@ -162,23 +177,20 @@ export default function PaginaAdminEditarDrumKit() {
 
     const nomeOk = nome.trim();
     if (!nomeOk) return setMensagem("Nome é obrigatório.");
-    
-    if (tipoInstalacao === "video") {
-      const url = conteudoInstalacao.trim();
-      if (!url) {
-        return setMensagem("Informe o link do vídeo do YouTube.");
-      }
-      if (!isYoutubeUrl(url)) {
-        return setMensagem("Informe uma URL válida do YouTube.");
-      }
+
+    const conteudoOk = conteudoInstalacao.trim();
+
+    // ✅ valida só se tiver conteúdo
+    if (tipoInstalacao === "video" && conteudoOk && !isYoutubeUrl(conteudoOk)) {
+      return setMensagem("Informe uma URL válida do YouTube.");
     }
-    
-    if (tipoInstalacao === "texto") {
-      if (!conteudoInstalacao.trim()) {
-        return setMensagem("O texto de instalação é obrigatório.");
-      }
+
+    // Se você quiser permitir texto vazio mesmo quando tipo=texto, remova esse if
+    if (tipoInstalacao === "texto" && conteudoOk.length === 0 && tipoInstalacao !== null) {
+      // Aqui só entra se o usuário escolheu "texto" e deixou vazio
+      return setMensagem("O texto de instalação é obrigatório.");
     }
-    
+
     setSalvando(true);
 
     const res = await fetch("/api/admin/drum-kit/editar", {
@@ -192,9 +204,13 @@ export default function PaginaAdminEditarDrumKit() {
         nome: nomeOk,
         subtitulo: subtitulo.trim() || null,
         descricao: descricao.trim() || null,
-        tipo_instalacao: tipoInstalacao,
-        conteudo_instalacao: conteudoInstalacao.trim() || null,
+
+        // ✅ se não tiver conteúdo -> manda null
+        tipo_instalacao: conteudoOk ? tipoInstalacao : null,
+        conteudo_instalacao: conteudoOk || null,
+
         ativo,
+        categoria,
       }),
     }).catch(() => null);
 
@@ -216,19 +232,36 @@ export default function PaginaAdminEditarDrumKit() {
       setNome(p.nome ?? "");
       setSubtitulo(p.subtitulo ?? "");
       setDescricao(p.descricao ?? "");
-      setTipoInstalacao(p.tipo_instalacao ?? "video");
+
+      // ✅ mantém null se veio null
+      setTipoInstalacao(p.tipo_instalacao ?? null);
       setConteudoInstalacao(p.conteudo_instalacao ?? "");
+
+      setCategoria(normalizarCategoria(p.categoria));
     }
 
     setMensagem("Salvo com sucesso.");
-  }, [adminOk, senhaAdmin, setMensagem, slug, nome, subtitulo, descricao, tipoInstalacao, conteudoInstalacao, ativo]);
+  }, [
+    adminOk,
+    senhaAdmin,
+    setMensagem,
+    slug,
+    nome,
+    subtitulo,
+    descricao,
+    tipoInstalacao,
+    conteudoInstalacao,
+    ativo,
+    categoria,
+  ]);
 
   // enviar arquivos
   const enviarArquivos = useCallback(async () => {
     setMensagem(null);
 
     if (!adminOk) return setMensagem("Digite a senha correta do admin.");
-    if (!capaNova && !torrentNovo) return setMensagem("Selecione uma capa e/ou um .torrent.");
+    if (!capaNova && !torrentNovo)
+      return setMensagem("Selecione uma capa e/ou um .torrent.");
 
     setEnviandoArquivos(true);
 
@@ -268,10 +301,33 @@ export default function PaginaAdminEditarDrumKit() {
   }, [adminOk, senhaAdmin, setMensagem, slug, capaNova, torrentNovo]);
 
   // render
-  if (!senhaAdmin) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">Digite a senha do admin no header para editar este drumKit.</div>;
-  if (validando) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">Validando senha…</div>;
-  if (!adminOk) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">Senha admin inválida.</div>;
-  if (carregando || !drumKit) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">{carregando ? "Carregando…" : "DrumKit não encontrado."}</div>;
+  if (!senhaAdmin)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        Digite a senha do admin no header para editar este drumKit.
+      </div>
+    );
+
+  if (validando)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        Validando senha…
+      </div>
+    );
+
+  if (!adminOk)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        Senha admin inválida.
+      </div>
+    );
+
+  if (carregando || !drumKit)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        {carregando ? "Carregando…" : "DrumKit não encontrado."}
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-6">
@@ -327,72 +383,90 @@ export default function PaginaAdminEditarDrumKit() {
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
-  <label className="text-xs text-white/60">Descrição completa</label>
-  <textarea
-    value={descricao}
-    onChange={(e) => setDescricao(e.target.value)}
-    rows={6}
-    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
-    placeholder="Descrição detalhada do drumKit…"
-  />
-</div>
+            <label className="text-xs text-white/60">Descrição completa</label>
+            <textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              rows={6}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+              placeholder="Descrição detalhada do drumKit…"
+            />
+          </div>
 
-{/* TIPO DE CONTEÚDO */}
-<div className="flex flex-col gap-2 md:col-span-2">
-  <label className="text-xs text-white/60">Tipo de conteúdo de instalação</label>
-  <select
-  value={tipoInstalacao}
-  onChange={(e) => {
-    setTipoInstalacao(e.target.value as TipoInstalacao);
-    setConteudoInstalacao("");
-  }}
-  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
->
+          {/* TIPO DE CONTEÚDO */}
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="text-xs text-white/60">Tipo de conteúdo de instalação</label>
+            <select
+              value={tipoInstalacao ?? ""}
+              onChange={(e) => {
+                const v = e.target.value as ("" | "video" | "texto");
+                setTipoInstalacao(v === "" ? null : v);
+                setConteudoInstalacao("");
+              }}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">Sem instalação</option>
+              <option value="video">Vídeo (YouTube)</option>
+              <option value="texto">Texto / Instruções</option>
+            </select>
+          </div>
 
-    <option value="video">Vídeo (YouTube)</option>
-    <option value="texto">Texto / Instruções</option>
-  </select>
-</div>
+          {/* CONTEÚDO DINÂMICO */}
+          {tipoInstalacao === "video" && (
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-xs text-white/60">Link do vídeo (YouTube)</label>
+              <input
+                value={conteudoInstalacao}
+                onChange={(e) => setConteudoInstalacao(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+          )}
 
-{/* CONTEÚDO DINÂMICO */}
-{tipoInstalacao === "video" && (
-  <div className="flex flex-col gap-2 md:col-span-2">
-    <label className="text-xs text-white/60">Link do vídeo (YouTube)</label>
-    <input
-      value={conteudoInstalacao}
-      onChange={(e) => setConteudoInstalacao(e.target.value)}
-      placeholder="https://www.youtube.com/watch?v=..."
-      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
-    />
-  </div>
-)}
-
-{tipoInstalacao === "texto" && (
-  <div className="flex flex-col gap-2 md:col-span-2">
-    <label className="text-xs text-white/60">Texto de instalação</label>
-    <textarea
-      value={conteudoInstalacao}
-      onChange={(e) => setConteudoInstalacao(e.target.value)}
-      rows={6}
-      placeholder="Explique como instalar o drumKit..."
-      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
-    />
-  </div>
-)}
-
-
+          {tipoInstalacao === "texto" && (
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-xs text-white/60">Texto de instalação</label>
+              <textarea
+                value={conteudoInstalacao}
+                onChange={(e) => setConteudoInstalacao(e.target.value)}
+                rows={6}
+                placeholder="Explique como instalar o drumKit..."
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+          )}
 
           <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm md:col-span-2">
-            <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={ativo}
+              onChange={(e) => setAtivo(e.target.checked)}
+            />
             <span className="text-white/80">Ativo</span>
           </label>
+
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="text-xs text-white/60">Categoria</label>
+            <select
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value as CategoriaDrumKit)}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+            >
+              <option value="drum-kit">Drum Kit</option>
+              <option value="sample-kit">Sample Kit</option>
+              <option value="midi-kit">MIDI Kit</option>
+            </select>
+          </div>
         </div>
       </section>
 
       {/* ARQUIVOS */}
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
         <h3 className="text-lg font-semibold">Arquivos (R2)</h3>
-        <p className="mt-1 text-sm text-white/60">Atualize a capa e/ou o .torrent deste drumKit (1200x547).</p>
+        <p className="mt-1 text-sm text-white/60">
+          Atualize a capa e/ou o .torrent deste drumKit (1600×900).
+        </p>
 
         <div className="mt-4 grid gap-3">
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -405,7 +479,9 @@ export default function PaginaAdminEditarDrumKit() {
                   alt={drumKit.nome}
                   className="h-20 w-20 rounded-xl object-cover border border-white/10"
                 />
-                <div className="text-xs text-white/60 break-all">{drumKit.imagem_capa_url}</div>
+                <div className="text-xs text-white/60 break-all">
+                  {drumKit.imagem_capa_url}
+                </div>
               </div>
             ) : (
               <div className="mt-2 text-white/70">Sem capa</div>

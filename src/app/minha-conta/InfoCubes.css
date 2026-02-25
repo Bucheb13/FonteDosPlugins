@@ -1,0 +1,289 @@
+/* src/app/minha-conta/InfoCubes.css */
+
+/* ========= GRID ========= */
+.cubesGrid {
+  display: grid;
+  gap: 18px;                 /* ✅ mais próximo */
+  justify-content: center;   /* ✅ centralizado */
+  place-items: center;       /* ✅ centraliza os cubos */
+}
+
+@media (min-width: 768px) {
+  .cubesGrid {
+    grid-template-columns: repeat(4, 116px); /* ✅ menor e alinhado */
+    gap: 50px;                               /* ✅ mais próximo no desktop */
+  }
+}
+
+/* ========= CONTAINER ========= */
+.cubeContainer {
+  width: 116px;
+  height: 116px;
+  perspective: 950px;
+  position: relative;
+  transform: translateZ(0);
+}
+
+/* base “premium” (sombra no chão) */
+.cubeContainer::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 86px;
+  height: 18px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(0,0,0,0.55), transparent 70%);
+  filter: blur(10px);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* glow externo “controlado” */
+.cubeContainer::after {
+  content: "";
+  position: absolute;
+  inset: -22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--glow), 0.22), transparent 68%);
+  filter: blur(18px);
+  opacity: 0.55;
+  pointer-events: none;
+  animation: glowPulse 2.7s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%,100% { opacity: 0.42; transform: scale(0.98); }
+  50%     { opacity: 0.78; transform: scale(1.03); }
+}
+
+/* ========= CUBO ========= */
+.cube3d {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+
+  /* ✅ mais rápido (sem virar ventilador) */
+  animation: idleFloat 6.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.cubeContainer:hover .cube3d {
+  transform: rotateX(20deg) rotateY(18deg);
+  transition: transform 320ms ease;
+}
+
+/* ========= FACES ========= */
+.face {
+  position: absolute;
+  width: 116px;
+  height: 116px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  padding: 10px;
+
+  /* ✅ impede vazamento de trás */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+
+  /* gourmet glass */
+  background:
+    radial-gradient(120px 120px at 25% 20%, rgba(255,255,255,0.12), transparent 60%),
+    radial-gradient(140px 140px at 80% 65%, rgba(var(--glow),0.10), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(0,0,0,0.40));
+
+  border-radius: 5px;
+
+  /* borda premium com highlight */
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    0 0 22px rgba(var(--glow), 0.22),
+    inset 0 0 20px rgba(var(--glow), 0.12),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+
+  color: rgb(var(--text));
+  overflow: hidden;
+}
+
+/* “sheen” (reflexo passando) */
+.face::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  transform: rotate(25deg) translateX(-30%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(139, 139, 139, 0.719),
+    rgba(255,255,255,0.05),
+    transparent
+  );
+  filter: blur(2px);
+  opacity: 0.65;
+  animation: sheen 5.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes sheen {
+  0%   { transform: rotate(25deg) translateX(-40%); opacity: 0.20; }
+  45%  { opacity: 0.75; }
+  100% { transform: rotate(25deg) translateX(35%); opacity: 0.20; }
+}
+
+/* ========= TEXTO ========= */
+.faceInner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cubeLabel {
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.cubeValue {
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-shadow: 0 0 12px rgba(var(--glow), 0.50);
+  overflow-wrap: anywhere;
+}
+
+/* ========= PROFUNDIDADE ========= */
+/* metade de 116 = 58 */
+.front  { transform: translateZ(58px); }
+.back   { transform: rotateY(180deg) translateZ(58px); }
+.right  { transform: rotateY(90deg) translateZ(58px); }
+.left   { transform: rotateY(-90deg) translateZ(58px); }
+.top    { transform: rotateX(90deg) translateZ(58px); }
+.bottom { transform: rotateX(-90deg) translateZ(58px); }
+
+/* ========= ANIMAÇÃO CINEMÁTICA ========= */
+@keyframes idleFloat {
+  0%   { transform: rotateX(14deg) rotateY(0deg)   translateY(0px); }
+  25%  { transform: rotateX(20deg) rotateY(10deg)  translateY(-1px); }
+  50%  { transform: rotateX(14deg) rotateY(18deg)  translateY(0px); }
+  75%  { transform: rotateX(20deg) rotateY(8deg)   translateY(-1px); }
+  100% { transform: rotateX(14deg) rotateY(0deg)   translateY(0px); }
+}
+
+/* acessibilidade */
+@media (prefers-reduced-motion: reduce) {
+  .cube3d { animation: none; }
+  .cubeContainer::after { animation: none; }
+  .face::after { animation: none; }
+}
+/* ===== MOBILE FIX: cubos viram cards (sem 3D) e 2 colunas ===== */
+@media (max-width: 767px) {
+  .cubesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .cubeContainer {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    perspective: none;
+  }
+
+  .cubeContainer::before,
+  .cubeContainer::after {
+    display: none; /* evita glow/“sombra” quebrando layout */
+  }
+
+  .cube3d {
+    width: 100%;
+    height: auto;
+    transform: none !important;
+    animation: none !important;
+  }
+
+  .face {
+    width: 100%;
+    height: auto;
+    position: relative;
+    transform: none !important;
+    border-radius: 18px;
+    min-height: 96px;
+  }
+
+  /* só a face da frente */
+  .cube3d .face:not(.front) {
+    display: none;
+  }
+
+  .faceInner {
+    padding: 14px;
+    text-align: left;
+  }
+
+  .cubeLabel {
+    font-size: 10px;
+  }
+
+  .cubeValue {
+    font-size: 13px;
+    word-break: break-word;
+  }
+}
+/* ===== MOBILE: 2x2 sempre, sem sumir pra direita ===== */
+@media (max-width: 767px) {
+  .cubesGrid {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+
+    justify-items: center;
+    align-items: center;
+  }
+
+  .cubeContainer {
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    perspective: none;
+  }
+
+  /* mobile legível: vira “card” (só face front) */
+  .cube3d {
+    width: 100%;
+    height: auto;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .cube3d .face:not(.front) {
+    display: none !important;
+  }
+
+  .face {
+    position: relative;
+    width: 100%;
+    height: auto;
+    min-height: 96px;
+    transform: none !important;
+    border-radius: 18px;
+  }
+
+  .face::after {
+    display: none; /* sheen pode atrapalhar legibilidade em tela pequena */
+  }
+}

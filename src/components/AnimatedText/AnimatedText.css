@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css?family=Lato");
+
+/* vira INLINE, pra encaixar dentro do seu <span> */
+.rotator {
+  display: inline-flex;
+  vertical-align: baseline;
+  font-family: "Lato", sans-serif;
+  font-weight: 600;
+  font-size: inherit;      /* herda do texto onde você colocou */
+  line-height: 1;          /* evita “pular” a linha */
+  color: inherit;
+}
+
+.rotator__container {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  height: 1.1em;
+  overflow: hidden;
+  padding: 0 0.9em;        /* espaço pros colchetes */
+}
+
+.rotator__container::before,
+.rotator__container::after {
+  position: absolute;
+  top: 0;
+  line-height: 1;
+  color: #16a085;
+  font-size: 1.2em;
+  animation: opacity 2s infinite;
+}
+
+.rotator__container::before {
+  content: "[";
+  left: 0;
+}
+
+.rotator__container::after {
+  content: "]";
+  right: 0;
+}
+
+.rotator__text {
+  display: inline-block;
+  margin-right: 0.35em;
+  white-space: nowrap;
+}
+
+.rotator__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  animation: change 10s infinite;
+}
+
+.rotator__item {
+  margin: 0;
+  height: 1.1em;
+  line-height: 1.1em;
+  white-space: nowrap;
+}
+
+@keyframes opacity {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+@keyframes change {
+  0%, 12.66%, 100% { transform: translate3d(0, 0, 0); }
+  16.66%, 29.32% { transform: translate3d(0, -25%, 0); }
+  33.32%, 45.98% { transform: translate3d(0, -50%, 0); }
+  49.98%, 62.64% { transform: translate3d(0, -75%, 0); }
+  66.64%, 79.3%  { transform: translate3d(0, -50%, 0); }
+  83.3%, 95.96%  { transform: translate3d(0, -25%, 0); }
+}

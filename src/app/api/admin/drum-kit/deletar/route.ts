@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
+import { registrarAuditoriaAdmin } from "@/lib/admin-auditoria";
 import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
@@ -18,16 +20,11 @@ function criarClienteR2() {
   });
 }
 
-
-type Body = {
-  slug: string;
-};
-
 export async function POST(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (!senha || senha !== process.env.SENHA_ADMIN) {
-    return NextResponse.json({ erro: "Acesso negado." }, { status: 401 });
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
+
+  await registrarAuditoriaAdmin(req, { acao: "POST", entidade: "drum-kit/deletar" });
 
   const body = (await req.json().catch(() => null)) as { slug?: string } | null;
   const slug = body?.slug?.trim();

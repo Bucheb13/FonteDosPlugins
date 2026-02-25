@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
+import { registrarAuditoriaAdmin } from "@/lib/admin-auditoria";
 import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 
 type StatusAssinatura = "ativa" | "inativa";
 type TipoAssinatura = "mensal" | "anual";
 
 export async function POST(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (!senha || senha !== process.env.SENHA_ADMIN) {
-    return NextResponse.json({ erro: "Acesso negado." }, { status: 401 });
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
+
+  await registrarAuditoriaAdmin(req, { acao: "POST", entidade: "assinaturas/atualizar" });
 
   const bodyUnknown: unknown = await req.json().catch(() => null);
   const body = (bodyUnknown && typeof bodyUnknown === "object" ? bodyUnknown : {}) as Record<string, unknown>;

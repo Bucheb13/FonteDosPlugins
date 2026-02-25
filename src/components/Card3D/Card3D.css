@@ -1,0 +1,69 @@
+.cards {
+    perspective: 500px;
+  }
+  
+  .card {
+    width: 300px;
+    aspect-ratio: 3 / 2;  /* 👈 mantém proporção perfeita */
+      height: auto;
+    background: #16161d;
+    border: 2px solid #555555;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+  
+    transform-style: preserve-3d;
+    will-change: transform;
+    transition: transform .5s ease;
+  }
+  
+  .card:hover {
+    transform: translateZ(10px) rotateX(20deg) rotateY(20deg);
+  }
+  
+  .card_image {
+    position: absolute;
+    inset: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #0b0f1a;
+    filter: brightness(0.85);
+  }
+  
+  
+  
+  /* overlay leve */
+  .card_overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0,0,0,0.75),
+      rgba(0,0,0,0.1)
+    );
+  }
+  
+  /* título flutuante */
+  .card_title {
+    color: #fff;
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    transition: transform .5s;
+    font: 700 1.2rem monospace;
+    text-align: right;
+    max-width: 150px;
+  
+    text-shadow:
+      -1px -1px 0 #000,
+       1px -1px 0 #000,
+      -1px  1px 0 #000,
+       1px  1px 0 #000;
+  }
+  
+  .card:hover .card_title {
+    transform: translateY(-50%) translateZ(50px);
+  }
+  

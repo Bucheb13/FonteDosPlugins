@@ -11,9 +11,9 @@ type Props = {
 
 type Item = { href: string; label: string };
 
-export default function HeaderAdmin({ titulo = "Onde tudo acontece - FonteDosPlugins", subtitulo = "Painel administrativo" }: Props) {
+export default function HeaderAdmin({ titulo = "Onde tudo acontece - FonteDosPlugins", subtitulo = "A Verdadeira Alquimia Das Ruas." }: Props) {
   const pathname = usePathname();
-  const { senhaAdmin, setSenhaAdmin, mensagem, acaoHeader } = useAdmin();
+  const { senhaAdmin, setSenhaAdmin, adminPorSessao, verificandoAcesso, mensagem, acaoHeader } = useAdmin();
 
   const itens: Item[] = [
     { href: "/admin/plugins", label: "Plugins" },
@@ -54,25 +54,44 @@ export default function HeaderAdmin({ titulo = "Onde tudo acontece - FonteDosPlu
               </Link>
             );
           })}
+
+          {pathname !== "/admin" ? (
+            <Link
+              href="/admin"
+              className="rounded-2xl border border-cyan-300/35 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/20"
+            >
+              Voltar ao Admin
+            </Link>
+          ) : null}
         </nav>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            className="w-full sm:max-w-sm rounded-2xl bg-black/30 border border-white/10 p-3 outline-none"
-            placeholder="Senha do admin"
-            value={senhaAdmin}
-            onChange={(e) => setSenhaAdmin(e.target.value)}
-            type="password"
-          />
+          {verificandoAcesso ? (
+            <div className="w-full sm:max-w-sm rounded-2xl bg-black/30 border border-white/10 p-3 text-sm text-white/70">
+              Validando acesso admin...
+            </div>
+          ) : adminPorSessao ? (
+            <div className="w-full sm:max-w-sm rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-200">
+              Acesso autorizado pela sua conta logada.
+            </div>
+          ) : (
+            <input
+              className="w-full sm:max-w-sm rounded-2xl bg-black/30 border border-white/10 p-3 outline-none"
+              placeholder="Senha do admin"
+              value={senhaAdmin}
+              onChange={(e) => setSenhaAdmin(e.target.value)}
+              type="password"
+            />
+          )}
 
           {acaoHeader ? (
             <button
               type="button"
               onClick={() => void acaoHeader.aoClicar()}
-              disabled={!senhaAdmin || acaoHeader.carregando}
+              disabled={!senhaAdmin || acaoHeader.carregando || verificandoAcesso}
               className="rounded-2xl bg-white text-black px-6 py-3 font-semibold disabled:opacity-50"
             >
-              {acaoHeader.carregando ? "Carregando…" : acaoHeader.rotulo}
+              {acaoHeader.carregando ? "Carregando..." : acaoHeader.rotulo}
             </button>
           ) : null}
         </div>

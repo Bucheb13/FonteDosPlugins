@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAdmin } from "@/components/admin/admin-contexto";
 
-type TipoInstalacao = "video" | "texto";
+type TipoInstalacao = "video" | "texto" | null;
+
+type Categoria = "efeitos" | "instrumentais";
 
 type Plugin = {
   id: string;
@@ -18,6 +20,9 @@ type Plugin = {
   r2_chave_arquivo: string | null;
   ativo: boolean | null; // pode vir null do banco
   criado_em: string;
+
+  // ✅ NOVO
+  categoria: Categoria | null;
 };
 
 async function lerJsonComSeguranca(res: Response) {
@@ -32,15 +37,15 @@ async function lerJsonComSeguranca(res: Response) {
 function isYoutubeUrl(url: string) {
   try {
     const u = new URL(url);
-    return (
-      u.hostname.includes("youtube.com") ||
-      u.hostname.includes("youtu.be")
-    );
+    return u.hostname.includes("youtube.com") || u.hostname.includes("youtu.be");
   } catch {
     return false;
   }
 }
 
+function normalizarCategoria(v: unknown): Categoria {
+  return v === "instrumentais" ? "instrumentais" : "efeitos";
+}
 
 export default function PaginaAdminEditarPlugin() {
   const { senhaAdmin, setMensagem } = useAdmin();
@@ -61,8 +66,11 @@ export default function PaginaAdminEditarPlugin() {
   const [subtitulo, setSubtitulo] = useState("");
   const [ativo, setAtivo] = useState<boolean>(true);
   const [descricao, setDescricao] = useState("");
-  const [tipoInstalacao, setTipoInstalacao] = useState<TipoInstalacao>("video");
+  const [tipoInstalacao, setTipoInstalacao] = useState<TipoInstalacao>(null);
   const [conteudoInstalacao, setConteudoInstalacao] = useState("");
+
+  // ✅ NOVO: categoria
+  const [categoria, setCategoria] = useState<Categoria>("efeitos");
 
   // arquivos
   const [capaNova, setCapaNova] = useState<File | null>(null);
@@ -115,16 +123,18 @@ export default function PaginaAdminEditarPlugin() {
 
     setCarregando(true);
 
-    const res = await fetch(`/api/admin/plugins/obter?slug=${encodeURIComponent(slug)}`, {
-      headers: { "x-senha-admin": senhaAdmin },
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `/api/admin/plugins/obter?slug=${encodeURIComponent(slug)}`,
+      {
+        headers: { "x-senha-admin": senhaAdmin },
+        cache: "no-store",
+      }
+    );
 
     const json = await lerJsonComSeguranca(res);
     setCarregando(false);
 
     if (!res.ok) {
-      
       setMensagem(json?.erro ?? "Falha ao carregar plugin.");
       return;
     }
@@ -136,10 +146,12 @@ export default function PaginaAdminEditarPlugin() {
       setNome(p.nome ?? "");
       setSubtitulo(p.subtitulo ?? "");
       setDescricao(p.descricao ?? "");
-      setTipoInstalacao(p.tipo_instalacao ?? "video");
-      setConteudoInstalacao(p.conteudo_instalacao ?? "");
+      setTipoInstalacao(p.tipo_instalacao ?? null);
+      setConteudoInstalacao(p.conteudo_instalacao ?? "");      
       setAtivo(p.ativo ?? true);
 
+      // ✅ NOVO
+      setCategoria(normalizarCategoria(p.categoria));
     }
   }, [adminOk, senhaAdmin, setMensagem, slug]);
 
@@ -162,23 +174,14 @@ export default function PaginaAdminEditarPlugin() {
 
     const nomeOk = nome.trim();
     if (!nomeOk) return setMensagem("Nome é obrigatório.");
-    
-    if (tipoInstalacao === "video") {
-      const url = conteudoInstalacao.trim();
-      if (!url) {
-        return setMensagem("Informe o link do vídeo do YouTube.");
-      }
-      if (!isYoutubeUrl(url)) {
-        return setMensagem("Informe uma URL válida do YouTube.");
-      }
+
+    const conteudoOk = conteudoInstalacao.trim();
+
+    if (tipoInstalacao === "video" && conteudoOk && !isYoutubeUrl(conteudoOk)) {
+      return setMensagem("Informe uma URL válida do YouTube.");
     }
     
-    if (tipoInstalacao === "texto") {
-      if (!conteudoInstalacao.trim()) {
-        return setMensagem("O texto de instalação é obrigatório.");
-      }
-    }
-    
+
     setSalvando(true);
 
     const res = await fetch("/api/admin/plugins/editar", {
@@ -192,9 +195,15 @@ export default function PaginaAdminEditarPlugin() {
         nome: nomeOk,
         subtitulo: subtitulo.trim() || null,
         descricao: descricao.trim() || null,
-        tipo_instalacao: tipoInstalacao,
-        conteudo_instalacao: conteudoInstalacao.trim() || null,
+        
+
+        tipo_instalacao: conteudoOk ? tipoInstalacao : null,
+        conteudo_instalacao: conteudoOk || null,
+        
         ativo,
+
+        // ✅ NOVO
+        categoria,
       }),
     }).catch(() => null);
 
@@ -218,10 +227,25 @@ export default function PaginaAdminEditarPlugin() {
       setDescricao(p.descricao ?? "");
       setTipoInstalacao(p.tipo_instalacao ?? "video");
       setConteudoInstalacao(p.conteudo_instalacao ?? "");
+
+      // ✅ NOVO
+      setCategoria(normalizarCategoria(p.categoria));
     }
 
     setMensagem("Salvo com sucesso.");
-  }, [adminOk, senhaAdmin, setMensagem, slug, nome, subtitulo, descricao, tipoInstalacao, conteudoInstalacao, ativo]);
+  }, [
+    adminOk,
+    senhaAdmin,
+    setMensagem,
+    slug,
+    nome,
+    subtitulo,
+    descricao,
+    tipoInstalacao,
+    conteudoInstalacao,
+    ativo,
+    categoria,
+  ]);
 
   // enviar arquivos
   const enviarArquivos = useCallback(async () => {
@@ -268,10 +292,30 @@ export default function PaginaAdminEditarPlugin() {
   }, [adminOk, senhaAdmin, setMensagem, slug, capaNova, torrentNovo]);
 
   // render
-  if (!senhaAdmin) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">Digite a senha do admin no header para editar este plugin.</div>;
-  if (validando) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">Validando senha…</div>;
-  if (!adminOk) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">Senha admin inválida.</div>;
-  if (carregando || !plugin) return <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">{carregando ? "Carregando…" : "Plugin não encontrado."}</div>;
+  if (!senhaAdmin)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        Digite a senha do admin no header para editar este plugin.
+      </div>
+    );
+  if (validando)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        Validando senha…
+      </div>
+    );
+  if (!adminOk)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        Senha admin inválida.
+      </div>
+    );
+  if (carregando || !plugin)
+    return (
+      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8 text-sm text-white/70">
+        {carregando ? "Carregando…" : "Plugin não encontrado."}
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-6">
@@ -316,6 +360,19 @@ export default function PaginaAdminEditarPlugin() {
             />
           </div>
 
+          {/* ✅ NOVO: CATEGORIA */}
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="text-xs text-white/60">Categoria</label>
+            <select
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value as Categoria)}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+            >
+              <option value="efeitos">Efeitos</option>
+              <option value="instrumentais">Instrumentais</option>
+            </select>
+          </div>
+
           <div className="flex flex-col gap-2 md:col-span-2">
             <label className="text-xs text-white/60">Subtitulo</label>
             <textarea
@@ -327,60 +384,60 @@ export default function PaginaAdminEditarPlugin() {
           </div>
 
           <div className="flex flex-col gap-2 md:col-span-2">
-  <label className="text-xs text-white/60">Descrição completa</label>
-  <textarea
-    value={descricao}
-    onChange={(e) => setDescricao(e.target.value)}
-    rows={6}
-    className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
-    placeholder="Descrição detalhada do plugin…"
-  />
-</div>
+            <label className="text-xs text-white/60">Descrição completa</label>
+            <textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              rows={6}
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+              placeholder="Descrição detalhada do plugin…"
+            />
+          </div>
 
-{/* TIPO DE CONTEÚDO */}
-<div className="flex flex-col gap-2 md:col-span-2">
-  <label className="text-xs text-white/60">Tipo de conteúdo de instalação</label>
-  <select
-  value={tipoInstalacao}
-  onChange={(e) => {
-    setTipoInstalacao(e.target.value as TipoInstalacao);
-    setConteudoInstalacao("");
-  }}
-  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
->
+          {/* TIPO DE CONTEÚDO */}
+          <div className="flex flex-col gap-2 md:col-span-2">
+            <label className="text-xs text-white/60">Tipo de conteúdo de instalação</label>
+            <select
+              value={tipoInstalacao ?? ""}
+              onChange={(e) => {
+                const v = e.target.value as ("" | "video" | "texto");
+                setTipoInstalacao(v === "" ? null : v);
+                setConteudoInstalacao("");
+              }}
+              
+              className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+            >
+              <option value="">Sem instalação</option>
+              <option value="video">Vídeo (YouTube)</option>
+              <option value="texto">Texto / Instruções</option>
+            </select>
+          </div>
 
-    <option value="video">Vídeo (YouTube)</option>
-    <option value="texto">Texto / Instruções</option>
-  </select>
-</div>
+          {/* CONTEÚDO DINÂMICO */}
+          {tipoInstalacao === "video" && (
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-xs text-white/60">Link do vídeo (YouTube)</label>
+              <input
+                value={conteudoInstalacao}
+                onChange={(e) => setConteudoInstalacao(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+          )}
 
-{/* CONTEÚDO DINÂMICO */}
-{tipoInstalacao === "video" && (
-  <div className="flex flex-col gap-2 md:col-span-2">
-    <label className="text-xs text-white/60">Link do vídeo (YouTube)</label>
-    <input
-      value={conteudoInstalacao}
-      onChange={(e) => setConteudoInstalacao(e.target.value)}
-      placeholder="https://www.youtube.com/watch?v=..."
-      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
-    />
-  </div>
-)}
-
-{tipoInstalacao === "texto" && (
-  <div className="flex flex-col gap-2 md:col-span-2">
-    <label className="text-xs text-white/60">Texto de instalação</label>
-    <textarea
-      value={conteudoInstalacao}
-      onChange={(e) => setConteudoInstalacao(e.target.value)}
-      rows={6}
-      placeholder="Explique como instalar o plugin..."
-      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
-    />
-  </div>
-)}
-
-
+          {tipoInstalacao === "texto" && (
+            <div className="flex flex-col gap-2 md:col-span-2">
+              <label className="text-xs text-white/60">Texto de instalação</label>
+              <textarea
+                value={conteudoInstalacao}
+                onChange={(e) => setConteudoInstalacao(e.target.value)}
+                rows={6}
+                placeholder="Explique como instalar o plugin..."
+                className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+              />
+            </div>
+          )}
 
           <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm md:col-span-2">
             <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
@@ -392,7 +449,9 @@ export default function PaginaAdminEditarPlugin() {
       {/* ARQUIVOS */}
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
         <h3 className="text-lg font-semibold">Arquivos (R2)</h3>
-        <p className="mt-1 text-sm text-white/60">Atualize a capa e/ou o .torrent deste plugin (1200x547).</p>
+        <p className="mt-1 text-sm text-white/60">
+          Atualize a capa e/ou o .torrent deste plugin (1600×900).
+        </p>
 
         <div className="mt-4 grid gap-3">
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -405,7 +464,9 @@ export default function PaginaAdminEditarPlugin() {
                   alt={plugin.nome}
                   className="h-20 w-20 rounded-xl object-cover border border-white/10"
                 />
-                <div className="text-xs text-white/60 break-all">{plugin.imagem_capa_url}</div>
+                <div className="text-xs text-white/60 break-all">
+                  {plugin.imagem_capa_url}
+                </div>
               </div>
             ) : (
               <div className="mt-2 text-white/70">Sem capa</div>

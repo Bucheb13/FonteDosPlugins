@@ -1,0 +1,159 @@
+.adminDash {
+  --dash-cyan: 34, 211, 238;
+  --dash-pink: 244, 114, 182;
+  --dash-purple: 168, 85, 247;
+}
+
+.adminHero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(var(--dash-cyan), 0.2), transparent 42%),
+    radial-gradient(circle at 92% 18%, rgba(var(--dash-pink), 0.16), transparent 45%),
+    radial-gradient(circle at 52% 100%, rgba(var(--dash-purple), 0.14), transparent 55%),
+    rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+}
+
+.adminHeroGlow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(var(--dash-cyan), 0.05), transparent 40%, rgba(var(--dash-pink), 0.05)),
+    radial-gradient(circle at 50% -40%, rgba(var(--dash-purple), 0.25), transparent 55%);
+}
+
+.glassPanel {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(8, 10, 18, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.kpiCard {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at 0 0, rgba(var(--dash-cyan), 0.08), transparent 40%),
+    rgba(5, 8, 16, 0.72);
+  padding: 14px;
+}
+
+.kpiCard strong {
+  letter-spacing: -0.02em;
+}
+
+.periodChip {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 7px 12px;
+  font-size: 12px;
+  transition: 180ms ease;
+}
+
+.periodChip:hover {
+  border-color: rgba(var(--dash-cyan), 0.55);
+  background: rgba(var(--dash-cyan), 0.12);
+}
+
+.periodChip.isActive {
+  border-color: rgba(var(--dash-pink), 0.65);
+  background:
+    linear-gradient(90deg, rgba(var(--dash-pink), 0.2), rgba(var(--dash-purple), 0.2)),
+    rgba(255, 255, 255, 0.05);
+}
+
+.miniBar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.miniBar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.actionTile {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  font-size: 13px;
+  transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.actionTile:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--dash-cyan), 0.5);
+  background: rgba(var(--dash-cyan), 0.08);
+}
+
+.statusBadge {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auditItem {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(5, 8, 16, 0.7);
+  padding: 10px 12px 10px 16px;
+}
+
+.auditItem::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(var(--dash-cyan), 0.85), rgba(var(--dash-purple), 0.85));
+}
+
+.chartScroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--dash-cyan), 0.7) rgba(255, 255, 255, 0.08);
+}
+
+.chartScroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.chartScroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chartScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid rgba(6, 8, 14, 0.9);
+  background: linear-gradient(
+    90deg,
+    rgba(var(--dash-cyan), 0.95),
+    rgba(var(--dash-purple), 0.9),
+    rgba(var(--dash-pink), 0.95)
+  );
+}
+
+.chartScroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(var(--dash-cyan), 1),
+    rgba(var(--dash-purple), 0.95),
+    rgba(var(--dash-pink), 1)
+  );
+}

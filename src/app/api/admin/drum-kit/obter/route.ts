@@ -1,14 +1,29 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
 import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 
+type TipoInstalacao = "video" | "texto" | null;
+type CategoriaDrumKit = "drum-kit" | "sample-kit" | "midi-kit";
+
+type DrumKitRow = {
+  id: string;
+  slug: string;
+  nome: string;
+  subtitulo: string | null;
+  imagem_capa_url: string | null;
+  r2_chave_arquivo: string | null;
+  descricao: string | null;
+  tipo_instalacao: TipoInstalacao;
+  conteudo_instalacao: string | null;
+  ativo: boolean | null;
+  categoria: CategoriaDrumKit | null;
+};
+
 export async function GET(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (senha !== process.env.SENHA_ADMIN) {
-    return NextResponse.json({ erro: "Acesso negado." }, { status: 401 });
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
 
-  const slug = new URL(req.url).searchParams.get("slug");
-
+  const slug = new URL(req.url).searchParams.get("slug")?.trim() ?? "";
   if (!slug) {
     return NextResponse.json({ erro: "slug é obrigatório." }, { status: 400 });
   }
@@ -17,7 +32,8 @@ export async function GET(req: Request) {
 
   const { data, error } = await supabase
     .from("drum_kits")
-    .select(`
+    .select(
+      `
       id,
       slug,
       nome,
@@ -27,14 +43,46 @@ export async function GET(req: Request) {
       descricao,
       tipo_instalacao,
       conteudo_instalacao,
-      ativo
-    `)    
+      ativo,
+      categoria
+    `
+    )
     .eq("slug", slug)
-    .single();
+    .maybeSingle<DrumKitRow>();
 
   if (error) {
     return NextResponse.json({ erro: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ drumKit: data });
+  if (!data) {
+    return NextResponse.json({ erro: "DrumKit não encontrado." }, { status: 404 });
+  }
+
+  /* =========================
+     NORMALIZAÇÃO DEFENSIVA
+  ========================= */
+  const conteudo =
+    typeof data.conteudo_instalacao === "string" && data.conteudo_instalacao.trim()
+      ? data.conteudo_instalacao.trim()
+      : null;
+
+  const tipo: TipoInstalacao =
+    conteudo && (data.tipo_instalacao === "video" || data.tipo_instalacao === "texto")
+      ? data.tipo_instalacao
+      : null;
+
+  const drumKitNormalizado: DrumKitRow = {
+    ...data,
+    subtitulo: data.subtitulo?.trim() || null,
+    descricao: data.descricao?.trim() || null,
+    conteudo_instalacao: conteudo,
+    tipo_instalacao: tipo,
+    ativo: data.ativo ?? true,
+    categoria:
+      data.categoria === "sample-kit" || data.categoria === "midi-kit" || data.categoria === "drum-kit"
+        ? data.categoria
+        : "drum-kit",
+  };
+
+  return NextResponse.json({ drumKit: drumKitNormalizado });
 }

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
+import { registrarAuditoriaAdmin } from "@/lib/admin-auditoria";
 import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -43,10 +45,10 @@ function criarClienteR2() {
 }
 
 export async function POST(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (!senha || senha !== process.env.SENHA_ADMIN) {
-    return jsonErro("Acesso negado.", 401);
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
+
+  await registrarAuditoriaAdmin(req, { acao: "POST", entidade: "drum-kit/editar-arquivos" });
 
   const bucket = process.env.R2_BUCKET;
   if (!bucket) return jsonErro("R2_BUCKET não configurado.", 500);
@@ -131,7 +133,7 @@ if (capa instanceof File) {
             Key: keyAntiga,
           })
         );
-      } catch (e) {
+      } catch {
         console.warn("Falha ao deletar capa antiga:", keyAntiga);
       }
     }

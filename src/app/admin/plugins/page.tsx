@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "@/components/admin/admin-contexto";
 
 type TipoManual = "video" | "texto";
-/* =========================
-   TIPOS
-========================= */
+
+type Categoria = "efeitos" | "instrumentais";
+
 type PluginItem = {
   id: string;
   slug: string;
@@ -18,6 +18,7 @@ type PluginItem = {
   r2_chave_arquivo: string | null;
   ativo: boolean;
   criado_em: string;
+  categoria: Categoria | null;
 };
 
 /* =========================
@@ -60,6 +61,8 @@ export default function PaginaAdminPlugins() {
   const [descricao, setDescricao] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [ativo, setAtivo] = useState(true);
+  const [categoria, setCategoria] = useState<Categoria>("efeitos");
+
 
   const [slugEditadoManualmente, setSlugEditadoManualmente] = useState(false);
 
@@ -79,7 +82,7 @@ export default function PaginaAdminPlugins() {
   /* =========================
      CARREGAR LISTA
   ========================== */
-  async function carregar() {
+  const carregar = useCallback(async () => {
     setMensagem(null);
     if (!senhaAdmin) return setMensagem("Digite a senha do admin.");
 
@@ -96,7 +99,7 @@ export default function PaginaAdminPlugins() {
     if (!res.ok) return setMensagem(json?.erro ?? "Erro ao carregar plugins.");
 
     setItens(json.itens ?? []);
-  }
+  }, [senhaAdmin, setMensagem]);
 
   /* HEADER ACTION */
   useEffect(() => {
@@ -106,7 +109,7 @@ export default function PaginaAdminPlugins() {
       aoClicar: carregar,
     });
     return () => setAcaoHeader(null);
-  }, [setAcaoHeader, carregando, senhaAdmin]);
+  }, [setAcaoHeader, carregando, carregar]);
 
   /* =========================
      CRIAR
@@ -122,13 +125,7 @@ export default function PaginaAdminPlugins() {
     if (!slugOk) return setMensagem("Slug obrigatório.");
     if (!arquivoCapa) return setMensagem("Envie a capa.");
     if (!arquivoTorrent) return setMensagem("Envie o torrent.");
-    if (tipoManual === "video" && !videoUrl.trim()) {
-      return setMensagem("Informe a URL do vídeo.");
-    }
-    
-    if (tipoManual === "texto" && !manualTexto.trim()) {
-      return setMensagem("Informe o manual escrito.");
-    }
+
     
 
     setCriando(true);
@@ -139,18 +136,26 @@ export default function PaginaAdminPlugins() {
     fd.append("subtitulo", subtitulo.trim());
     fd.append("descricao", descricao.trim());
   
-    fd.append("tipo_instalacao", tipoManual);
+// ✅ instalação é opcional
+const videoOk = videoUrl.trim();
+const textoOk = manualTexto.trim();
 
-    if (tipoManual === "video") {
-      fd.append("conteudo_instalacao", videoUrl.trim());
-    } else {
-      fd.append("conteudo_instalacao", manualTexto.trim());
-    }
+if (tipoManual === "video" && videoOk) {
+  fd.append("tipo_instalacao", "video");
+  fd.append("conteudo_instalacao", videoOk);
+} else if (tipoManual === "texto" && textoOk) {
+  fd.append("tipo_instalacao", "texto");
+  fd.append("conteudo_instalacao", textoOk);
+}
+// se não tiver conteúdo, não manda nada -> vira NULL no backend (se seu backend tratar)
+
     
     
     fd.append("ativo", String(ativo));
     fd.append("capa", arquivoCapa);
     fd.append("torrent", arquivoTorrent);
+    fd.append("categoria", categoria);
+
 
     const res = await fetch("/api/admin/plugins/criar", {
       method: "POST",
@@ -170,9 +175,12 @@ export default function PaginaAdminPlugins() {
     setSubtitulo("");
     setDescricao("");
     setVideoUrl("");
+    setManualTexto("");
     setArquivoCapa(null);
     setArquivoTorrent(null);
     setMensagem("Plugin criado com sucesso.");
+    setCategoria("efeitos");
+
   }
 
   /* =========================
@@ -313,7 +321,7 @@ export default function PaginaAdminPlugins() {
             onClick={() => inputCapaRef.current?.click()}
             className="rounded-2xl bg-black/30 px-4 py-3 text-left"
           >
-            {arquivoCapa ? `✅ ${arquivoCapa.name}` : "Selecionar capa (1200x547)"}
+            {arquivoCapa ? `✅ ${arquivoCapa.name}` : "Selecionar capa (1600×900)"}
           </button>
           <input ref={inputCapaRef} type="file" hidden accept="image/*" onChange={(e) => setArquivoCapa(e.target.files?.[0] ?? null)} />
 
@@ -342,6 +350,29 @@ export default function PaginaAdminPlugins() {
             </button>
           </div>
         </div>
+        <div className="md:col-span-2 flex gap-4">
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="radio"
+      name="categoria"
+      value="efeitos"
+      checked={categoria === "efeitos"}
+      onChange={() => setCategoria("efeitos")}
+    />
+    Efeitos
+  </label>
+
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="radio"
+      name="categoria"
+      value="instrumentais"
+      checked={categoria === "instrumentais"}
+      onChange={() => setCategoria("instrumentais")}
+    />
+    Instrumentais
+  </label>
+</div>
       </section>
 
       {/* LISTA */}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 type AcaoHeader = {
   rotulo: string;
@@ -11,6 +11,8 @@ type AcaoHeader = {
 type AdminContextoValor = {
   senhaAdmin: string;
   setSenhaAdmin: (v: string) => void;
+  adminPorSessao: boolean;
+  verificandoAcesso: boolean;
 
   mensagem: string | null;
   setMensagem: (v: string | null) => void;
@@ -23,12 +25,48 @@ const AdminContexto = createContext<AdminContextoValor | null>(null);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [senhaAdmin, setSenhaAdmin] = useState("");
+  const [adminPorSessao, setAdminPorSessao] = useState(false);
+  const [verificandoAcesso, setVerificandoAcesso] = useState(true);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [acaoHeader, setAcaoHeader] = useState<AcaoHeader>(null);
 
+  useEffect(() => {
+    let ativo = true;
+
+    async function validarSessaoAdmin() {
+      try {
+        const res = await fetch("/api/admin/validar", { cache: "no-store" });
+        if (!ativo) return;
+
+        if (res.ok) {
+          setAdminPorSessao(true);
+          setSenhaAdmin((atual) => atual || "__session_admin__");
+        } else {
+          setAdminPorSessao(false);
+        }
+      } finally {
+        if (ativo) setVerificandoAcesso(false);
+      }
+    }
+
+    void validarSessaoAdmin();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
   const valor = useMemo(
-    () => ({ senhaAdmin, setSenhaAdmin, mensagem, setMensagem, acaoHeader, setAcaoHeader }),
-    [senhaAdmin, mensagem, acaoHeader]
+    () => ({
+      senhaAdmin,
+      setSenhaAdmin,
+      adminPorSessao,
+      verificandoAcesso,
+      mensagem,
+      setMensagem,
+      acaoHeader,
+      setAcaoHeader,
+    }),
+    [senhaAdmin, adminPorSessao, verificandoAcesso, mensagem, acaoHeader]
   );
 
   return <AdminContexto.Provider value={valor}>{children}</AdminContexto.Provider>;

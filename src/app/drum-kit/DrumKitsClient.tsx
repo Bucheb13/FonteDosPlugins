@@ -1,6 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { CardCatalogo } from "@/components/CardCatalogo";
+import { SearchGlow } from "@/components/SearchGlow/SearchGlow";
+import BotaoGradiente from "@/components/BotaoGradiente/BotaoGradiente";
+import PillTabs from "@/components/PillTabs/PillTabs";
+import type { ReactNode } from "react";
+
+type CategoriaDrumKit = "drum-kit" | "sample-kit" | "midi-kit";
+type Aba = "todos" | CategoriaDrumKit;
 
 type DrumKit = {
   id: string;
@@ -8,39 +17,71 @@ type DrumKit = {
   nome: string;
   subtitulo: string | null;
   imagem_capa_url: string | null;
+  categoria?: CategoriaDrumKit | null; // se sua API retornar
 };
 
-export default function PaginaDrumKit() {
+type Props = {
+  categoria?: CategoriaDrumKit;
+  titulo?: string;
+  subtituloHeader?: string;
+  mostrarAssinatura?: boolean;
+  hrefAssinatura?: string;
+  ranking?: ReactNode; // ✅ opcional (slot server -> client)
+};
+
+function normalizar(s: string) {
+  return (s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+export default function DrumKitsClient({
+  categoria,
+  titulo = "Drum-Kits",
+  subtituloHeader = "Apoie o site para liberar o download imediatamente!",
+  hrefAssinatura = "/assinaturas",
+  ranking,
+}: Props) {
+  const router = useRouter();
+
   const [drumKits, setDrumKits] = useState<DrumKit[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
   const [pesquisa, setPesquisa] = useState("");
 
-  // Debounce simples para pesquisa
+  // debounce
   const [debouncedPesquisa, setDebouncedPesquisa] = useState(pesquisa);
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedPesquisa(pesquisa), 500);
+    const t = setTimeout(() => setDebouncedPesquisa(pesquisa), 450);
     return () => clearTimeout(t);
   }, [pesquisa]);
 
   const buscarDrumKits = async (query: string) => {
     setCarregando(true);
     setErro("");
-    try {
-      const url = new URL("/api/drum-kit", location.origin);
-      if (query) url.searchParams.set("q", query);
 
-      const res = await fetch(url.toString());
+    try {
+      const url = new URL("/api/drum-kit", window.location.origin);
+      if (query) url.searchParams.set("q", query);
+      if (categoria) url.searchParams.set("categoria", categoria);
+
+      const res = await fetch(url.toString(), { cache: "no-store" });
       const data = await res.json();
 
-      if (data.erro) {
+      if (!res.ok) {
+        setErro(data?.erro ?? "Erro ao carregar Drum-Kits");
+        setDrumKits([]);
+        return;
+      }
+
+      if (data?.erro) {
         setErro(data.erro);
         setDrumKits([]);
       } else {
-        setDrumKits(data.drumKits ?? []);
+        setDrumKits(data?.drumKits ?? []);
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       setErro("Erro ao carregar Drum-Kits");
       setDrumKits([]);
     } finally {
@@ -50,76 +91,151 @@ export default function PaginaDrumKit() {
 
   useEffect(() => {
     buscarDrumKits(debouncedPesquisa);
-  }, [debouncedPesquisa]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedPesquisa, categoria]);
+
+  const placeholder =
+    categoria === "sample-kit"
+      ? "Busque por Sample Kits..."
+      : categoria === "midi-kit"
+      ? "Busque por MIDI Kits..."
+      : categoria === "drum-kit"
+      ? "Busque por Drum Kits..."
+      : "Busque por Drum-Kits...";
+
+  const qNorm = normalizar(pesquisa.trim());
+
+  // aba ativa derivada da rota/categoria
+  const abaAtiva: Aba =
+    categoria === "drum-kit" || categoria === "sample-kit" || categoria === "midi-kit"
+      ? categoria
+      : "todos";
+
+  const tabs = useMemo(
+    () => [
+      { key: "todos" as const, label: "Todos" },
+      { key: "drum-kit" as const, label: "Drum Kit" },
+      { key: "sample-kit" as const, label: "Sample Kit" },
+      { key: "midi-kit" as const, label: "MIDI Kit" },
+    ],
+    []
+  );
+
+  const setAbaAtiva = (aba: Aba) => {
+    if (aba === "todos") router.push("/drum-kit");
+    else router.push(`/drum-kit/${aba}`);
+  };
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-2 flex flex-col items-center">
-      {/* CABEÇALHO */}
-      <header className="text-center mb-6 w-full max-w-3xl">
-        <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tight">
-          Drum-Kits
-        </h1>
-        <p className="mt-3 text-white/70 text-lg md:text-xl">
-        Apoie o site para liberar o download imediatamente!
-        </p>
+    <div className="relative">
+      <div className="mx-auto w-full max-w-[1600px] px-4 md:px-6 pt-6 pb-6 md:pt-4 md:pb-10">
+        {/* HERO (padrão FIFA) */}
+        <section className="relative overflow-hidden rounded-[32px] border border-white/12 bg-black/35 backdrop-blur-md">
+          <div
+            className="absolute inset-0 opacity-50 bg-cover bg-center"
+            style={{ backgroundImage: "url('/imagens/banner-destaque.webp')" }}
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-black/75 to-black/90" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.10] noise-overlay" />
+          <div className="pointer-events-none absolute inset-0 rounded-[32px] ring-1 ring-inset ring-white/10" />
 
-        <input
-          type="text"
-          placeholder="Busque por Drum-Kits..."
-          value={pesquisa}
-          onChange={(e) => setPesquisa(e.target.value)}
-          className="mt-6 w-full rounded-xl bg-black/30 border border-cyan-400 p-4 text-white placeholder:text-white/50 shadow-md focus:ring-2 focus:ring-cyan-400 transition"
-        />
-      </header>
+          <div className="pointer-events-none absolute -top-20 left-1/2 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-cyan-500/12 blur-[110px]" />
+          <div className="pointer-events-none absolute -bottom-24 right-[-80px] h-[360px] w-[360px] rounded-full bg-fuchsia-500/10 blur-[110px]" />
 
-      {/* MENSAGENS */}
-      {carregando && <p className="text-white/70 mb-4">Carregando Drum-Kits...</p>}
-      {erro && <p className="text-red-400 mb-4">{erro}</p>}
+          <div className="relative z-10 px-6 py-7 md:px-10 md:py-9">
+            <div className="flex flex-col items-center text-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-4 py-2 text-xs font-semibold text-white/85 backdrop-blur">
+                <span className="h-2 w-2 rounded-full bg-green-400/80" />
+                Catálogo verificado • Downloads por torrent
+              </div>
 
-      {/* GRID DE DRUM-KITS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-8 w-full justify-items-center">
-        {drumKits.length === 0 && !carregando && (
-          <div className="col-span-full text-white/60 text-center py-10">
-            Nenhum Drum-Kit encontrado.
-          </div>
-        )}
+              <h1 className="mt-4 text-3xl md:text-4xl font-extrabold tracking-tight text-white text-shadow-strong">
+                {titulo} <span className="text-white/70">para elevar sua produção</span>
+              </h1>
 
-        {drumKits.map((kit) => (
-          <Link
-            key={kit.id}
-            href={`/drum-kit/${kit.slug}`}
-            className="group relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md transition-transform duration-300 hover:scale-[1.02] hover:border-cyan-400 hover:bg-white/10"
-          >
-            {/* IMAGEM */}
-            <div className="relative h-56 w-full overflow-hidden rounded-t-3xl bg-black/40">
-              {kit.imagem_capa_url ? (
-                <img
-                  src={kit.imagem_capa_url}
-                  alt={kit.nome}
-                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-white/30 text-sm">
-                  Sem imagem
+              <p className="mt-2 max-w-2xl text-sm md:text-base text-white/75 text-shadow-soft">
+                {subtituloHeader}
+              </p>
+
+              <div className="mt-5 flex justify-center">
+                <BotaoGradiente href={hrefAssinatura}>
+                  Apoiar via Pix e baixar sem espera
+                </BotaoGradiente>
+              </div>
+            </div>
+
+            {/* Tabs + ações + busca */}
+            <div className="mt-6 flex flex-col items-center gap-4">
+              <PillTabs<Aba>
+                name="drumkits-categoria"
+                abaAtiva={abaAtiva}
+                setAbaAtiva={setAbaAtiva}
+                tabs={tabs}
+                className="opacity-100"
+              />
+
+              {(pesquisa.trim() || categoria) && (
+                <button
+                  type="button"
+                  onClick={() => setPesquisa("")}
+                  className="rounded-full border border-white/20 bg-black/35 px-4 py-2 text-sm font-semibold text-white/80 backdrop-blur hover:bg-black/50 hover:border-white/30 transition"
+                >
+                  Limpar busca
+                </button>
+              )}
+
+              <div className="relative w-full max-w-[720px]">
+                <SearchGlow value={pesquisa} onChange={setPesquisa} placeholder={placeholder} />
+                <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-white/50">
+                  {qNorm ? "filtrando…" : "busca rápida"}
                 </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              </div>
             </div>
+          </div>
+        </section>
 
-            {/* CONTEÚDO */}
-            <div className="flex flex-col gap-2 p-5">
-              <h2 className="text-xl leading-tight text-white">{kit.nome}</h2>
-              {kit.subtitulo && (
-                <p className="text-sm text-white/70 line-clamp-3">{kit.subtitulo}</p>
-              )}
-              <span className="mt-3 inline-flex items-center gap-1 text-sm text-white/60 group-hover:text-white transition-all">
-                Ver detalhes
-                <span className="transition-transform group-hover:translate-x-1">→</span>
-              </span>
+        {/* LISTA */}
+        <section className="mx-auto w-full max-w-7xl mt-8">
+          {carregando && (
+            <div className="rounded-3xl border border-white/12 bg-black/40 p-5 text-sm text-white/75 backdrop-blur-md">
+              Carregando Drum-Kits...
             </div>
-          </Link>
-        ))}
+          )}
+
+          {erro && (
+            <div className="rounded-3xl border border-red-400/20 bg-red-500/10 p-5 text-sm text-red-200 backdrop-blur-md">
+              {erro}
+            </div>
+          )}
+
+          {!carregando && !erro && (
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {drumKits.length === 0 ? (
+                <div className="col-span-full rounded-3xl border border-white/12 bg-black/40 p-6 text-sm text-white/70 backdrop-blur-md">
+                  Nenhum Drum-Kit encontrado.
+                </div>
+              ) : (
+                drumKits.map((k) => (
+                  <CardCatalogo
+                    key={k.id}
+                    item={{
+                      id: k.id,
+                      slug: k.slug,
+                      nome: k.nome,
+                      subtitulo: k.subtitulo,
+                      imagem_capa_url: k.imagem_capa_url,
+                    }}
+                    hrefBase="/drum-kit"
+                    etiqueta="Drum-Kit"
+                    subcategoria={k.categoria ?? categoria ?? null}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </section>
+        {ranking}
       </div>
-    </section>
+    </div>
   );
 }

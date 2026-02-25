@@ -10,6 +10,9 @@
   font-style: normal;
   font-display: swap;
 }
+html, body {
+  overflow-x: hidden;
+}
 
 /* =========================
    BASE DO SITE
@@ -17,6 +20,9 @@
 :root {
   --font-sans: "MinhaFonte", system-ui, sans-serif;
   --font-display: "MinhaFonte", system-ui, sans-serif;
+
+    --fx-a: 0, 255, 255;
+    --fx-b: 255, 0, 170;
 }
 
 .font-sans {
@@ -154,4 +160,366 @@
 
 .animate-modal-pro {
   animation: modalFadeUp 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+/* Melhorar leitura em fundo complexo (gif/banners) */
+.text-shadow-soft {
+  text-shadow: 0 2px 12px rgba(0,0,0,.65);
+}
+
+.text-shadow-strong {
+  text-shadow: 0 3px 18px rgba(0,0,0,.85);
+}
+
+/* Noise sutil (opcional, dá cara premium) */
+.noise-overlay {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
+}
+/* Tilt suave com variáveis (JS seta --rx/--ry/--mx/--my) */
+.cc-tilt {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease;
+  will-change: transform;
+}
+
+.cc-tilt::before{
+  content:"";
+  position:absolute;
+  inset:-18px;
+  border-radius: 28px;
+  background: radial-gradient(700px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(34,211,238,.22), transparent 55%),
+    radial-gradient(700px circle at calc(var(--mx, 50%) + 10%) calc(var(--my, 50%) + 10%),
+    rgba(217,70,239,.18), transparent 60%);
+  filter: blur(26px);
+  opacity: .18;
+  transition: opacity 220ms ease;
+  z-index:-1;
+  pointer-events:none;
+}
+
+
+.cc-tilt.is-hovered{
+  filter: brightness(1.08) saturate(1.06);
+}
+.cc-tilt.is-hovered::before{ opacity:.55; }
+
+
+/* Respeita acessibilidade */
+@media (prefers-reduced-motion: reduce){
+  .cc-tilt, .cc-tilt::before, .cc-tilt::after{ transition:none !important; }
+}
+
+ .rain-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    #0000 0,
+    #0000 2px,
+    hsl(0 0 4%) 2px
+  );
+  background-size: 8px 8px;
+  --f: blur(1em) brightness(6);
+  animation: hii 10s linear infinite;
+}
+
+@keyframes hii {
+  0% {
+    backdrop-filter: var(--f) hue-rotate(0deg);
+  }
+  to {
+    backdrop-filter: var(--f) hue-rotate(360deg);
+  }
+}
+
+.rain-bg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  --c: #09f;
+  background-color: #000;
+  background-image: radial-gradient(4px 100px at 0px 235px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 235px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 117.5px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 252px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 252px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 126px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 150px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 150px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 75px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 253px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 253px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 126.5px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 204px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 204px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 102px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 134px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 134px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 67px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 179px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 179px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 89.5px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 299px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 299px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 149.5px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 215px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 215px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 107.5px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 281px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 281px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 140.5px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 158px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 158px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 79px, var(--c) 100%, #0000 150%),
+    radial-gradient(4px 100px at 0px 210px, var(--c), #0000),
+    radial-gradient(4px 100px at 300px 210px, var(--c), #0000),
+    radial-gradient(1.5px 1.5px at 150px 105px, var(--c) 100%, #0000 150%);
+  background-size:
+    300px 235px,
+    300px 235px,
+    300px 235px,
+    300px 252px,
+    300px 252px,
+    300px 252px,
+    300px 150px,
+    300px 150px,
+    300px 150px,
+    300px 253px,
+    300px 253px,
+    300px 253px,
+    300px 204px,
+    300px 204px,
+    300px 204px,
+    300px 134px,
+    300px 134px,
+    300px 134px,
+    300px 179px,
+    300px 179px,
+    300px 179px,
+    300px 299px,
+    300px 299px,
+    300px 299px,
+    300px 215px,
+    300px 215px,
+    300px 215px,
+    300px 281px,
+    300px 281px,
+    300px 281px,
+    300px 158px,
+    300px 158px,
+    300px 158px,
+    300px 210px,
+    300px 210px,
+    300px 210px;
+  animation: hi 150s linear infinite;
+}
+
+@keyframes hi {
+  0% {
+    background-position:
+      0px 220px,
+      3px 220px,
+      151.5px 337.5px,
+      25px 24px,
+      28px 24px,
+      176.5px 150px,
+      50px 16px,
+      53px 16px,
+      201.5px 91px,
+      75px 224px,
+      78px 224px,
+      226.5px 350.5px,
+      100px 19px,
+      103px 19px,
+      251.5px 121px,
+      125px 120px,
+      128px 120px,
+      276.5px 187px,
+      150px 31px,
+      153px 31px,
+      301.5px 120.5px,
+      175px 235px,
+      178px 235px,
+      326.5px 384.5px,
+      200px 121px,
+      203px 121px,
+      351.5px 228.5px,
+      225px 224px,
+      228px 224px,
+      376.5px 364.5px,
+      250px 26px,
+      253px 26px,
+      401.5px 105px,
+      275px 75px,
+      278px 75px,
+      426.5px 180px;
+  }
+
+  to {
+    background-position:
+      0px 6800px,
+      3px 6800px,
+      151.5px 6917.5px,
+      25px 13632px,
+      28px 13632px,
+      176.5px 13758px,
+      50px 5416px,
+      53px 5416px,
+      201.5px 5491px,
+      75px 17175px,
+      78px 17175px,
+      226.5px 17301.5px,
+      100px 5119px,
+      103px 5119px,
+      251.5px 5221px,
+      125px 8428px,
+      128px 8428px,
+      276.5px 8495px,
+      150px 9876px,
+      153px 9876px,
+      301.5px 9965.5px,
+      175px 13391px,
+      178px 13391px,
+      326.5px 13540.5px,
+      200px 14741px,
+      203px 14741px,
+      351.5px 14848.5px,
+      225px 18770px,
+      228px 18770px,
+      376.5px 18910.5px,
+      250px 5082px,
+      253px 5082px,
+      401.5px 5161px,
+      275px 6375px,
+      278px 6375px,
+      426.5px 6480px;
+  }
+}
+.pattern-anchor {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* faz o .container ocupar a âncora toda */
+.pattern-anchor > .container {
+  width: 100%;
+  height: 100%;
+}
+section .container {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: inherit !important;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+section .container::after {
+  border-radius: inherit !important;
+  pointer-events: none;
+}
+.uiverse-button {
+  position: relative;
+  text-decoration: none;
+  color: #fff;
+  background: linear-gradient(45deg, #0ce39a, #69007f, #fc0987);
+  padding: 8px 10px;
+  border-radius: 25px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border: none;
+}
+
+.uiverse-button span {
+  position: relative;
+  z-index: 1;
+}
+
+.uiverse-button::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: #272727;
+  border-radius: 25px;
+  transition: 0.5s;
+}
+
+.uiverse-button:hover::before {
+  opacity: 0.7;
+}
+
+.uiverse-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, #0ce39a, #69007f, #fc0987);
+  border-radius: 9px;
+  transition: 0.5s;
+  opacity: 0;
+  filter: blur(20px);
+}
+
+.uiverse-button:hover::after {
+  opacity: 1;
+}
+/* ===== MODAL STAGE (FULLSCREEN FX) ===== */
+
+.modal-stage-aurora{
+  --x: calc(var(--mx) * 100%);
+  --y: calc(var(--my) * 100%);
+
+  background:
+    radial-gradient(140px 140px at var(--x) var(--y),
+      rgba(var(--fx-a), .12),
+      rgba(var(--fx-a), .05) 32%,
+      transparent 62%),
+    radial-gradient(260px 200px at calc(var(--x) + 8%) calc(var(--y) - 6%),
+      rgba(var(--fx-b), .06),
+      transparent 70%);
+  mix-blend-mode: screen;
+  filter: blur(8px);
+  opacity: .9;
+}
+
+
+/* canvas esticado: render interno menor (feito no ts) */
+.modal-stage-canvas{
+  opacity: .78;
+  mix-blend-mode: screen;
+  filter: saturate(1.08) contrast(1.05);
+}
+
+
+/* heat na base do viewport (fora do card) */
+.modal-stage-heat{
+  background:
+    radial-gradient(circle at 20% 100%, rgba(255,90,0,.20), transparent 55%),
+    radial-gradient(circle at 55% 100%, rgba(255,0,120,.14), transparent 60%),
+    radial-gradient(circle at 85% 100%, rgba(0,246,255,.12), transparent 60%);
+  mix-blend-mode: screen;
+  filter: blur(18px);
+  opacity: .85;
+}
+
+/* vinheta cinematográfica global */
+.modal-stage-vignette{
+  background: radial-gradient(circle at 50% 35%, transparent 0%, rgba(0,0,0,.60) 70%, rgba(0,0,0,.88) 100%);
+}
+
+/* reduz motion */
+@media (prefers-reduced-motion: reduce){
+  .modal-stage-aurora{ filter: blur(18px); opacity:.55; }
+  .modal-stage-canvas{ display:none; }
+}
+/* garante pointer no modal */
+[aria-label="Apoie o projeto"] button {
+  cursor: pointer;
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "@/components/admin/admin-contexto";
 
-type TipoManual = "video" | "texto";
-/* =========================
-   TIPOS
-========================= */
+type TipoManual = "video" | "texto" | null;
+
+
+type CategoriaDrumKit = "drum-kit" | "sample-kit" | "midi-kit";
+
 type DrumKitItem = {
   id: string;
   slug: string;
@@ -18,6 +19,7 @@ type DrumKitItem = {
   r2_chave_arquivo: string | null;
   ativo: boolean;
   criado_em: string;
+  categoria: CategoriaDrumKit | null;
 };
 
 /* =========================
@@ -60,11 +62,13 @@ export default function PaginaAdminDrumKits() {
   const [descricao, setDescricao] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [ativo, setAtivo] = useState(true);
+  const [categoria, setCategoria] = useState<CategoriaDrumKit>("drum-kit");
+
 
   const [slugEditadoManualmente, setSlugEditadoManualmente] = useState(false);
 
 
-  const [tipoManual, setTipoManual] = useState<TipoManual>("video");
+  const [tipoManual, setTipoManual] = useState<TipoManual>(null);
   const [manualTexto, setManualTexto] = useState("");
   
   /* ARQUIVOS */
@@ -79,7 +83,7 @@ export default function PaginaAdminDrumKits() {
   /* =========================
      CARREGAR LISTA
   ========================== */
-  async function carregar() {
+  const carregar = useCallback(async () => {
     setMensagem(null);
     if (!senhaAdmin) return setMensagem("Digite a senha do admin.");
 
@@ -96,7 +100,7 @@ export default function PaginaAdminDrumKits() {
     if (!res.ok) return setMensagem(json?.erro ?? "Erro ao carregar drum-kits.");
 
     setItens(json.itens ?? []);
-  }
+  }, [senhaAdmin, setMensagem]);
 
   /* HEADER ACTION */
   useEffect(() => {
@@ -106,7 +110,7 @@ export default function PaginaAdminDrumKits() {
       aoClicar: carregar,
     });
     return () => setAcaoHeader(null);
-  }, [setAcaoHeader, carregando, senhaAdmin]);
+  }, [setAcaoHeader, carregando, carregar]);
 
   /* =========================
      CRIAR
@@ -122,13 +126,7 @@ export default function PaginaAdminDrumKits() {
     if (!slugOk) return setMensagem("Slug obrigatório.");
     if (!arquivoCapa) return setMensagem("Envie a capa.");
     if (!arquivoTorrent) return setMensagem("Envie o torrent.");
-    if (tipoManual === "video" && !videoUrl.trim()) {
-      return setMensagem("Informe a URL do vídeo.");
-    }
-    
-    if (tipoManual === "texto" && !manualTexto.trim()) {
-      return setMensagem("Informe o manual escrito.");
-    }
+
     
 
     setCriando(true);
@@ -139,18 +137,25 @@ export default function PaginaAdminDrumKits() {
     fd.append("subtitulo", subtitulo.trim());
     fd.append("descricao", descricao.trim());
   
-    fd.append("tipo_instalacao", tipoManual);
-
-    if (tipoManual === "video") {
-      fd.append("conteudo_instalacao", videoUrl.trim());
-    } else {
-      fd.append("conteudo_instalacao", manualTexto.trim());
+    const videoOk = videoUrl.trim();
+    const textoOk = manualTexto.trim();
+    
+    if (tipoManual === "video" && videoOk) {
+      fd.append("tipo_instalacao", "video");
+      fd.append("conteudo_instalacao", videoOk);
+    } else if (tipoManual === "texto" && textoOk) {
+      fd.append("tipo_instalacao", "texto");
+      fd.append("conteudo_instalacao", textoOk);
     }
+    // se não tiver conteúdo -> não manda nada (vira NULL no backend, se o backend tratar)
+    
     
     
     fd.append("ativo", String(ativo));
     fd.append("capa", arquivoCapa);
     fd.append("torrent", arquivoTorrent);
+    fd.append("categoria", categoria);
+
 
     const res = await fetch("/api/admin/drum-kit/criar", {
       method: "POST",
@@ -173,6 +178,8 @@ export default function PaginaAdminDrumKits() {
     setArquivoCapa(null);
     setArquivoTorrent(null);
     setMensagem("Drum-Kit criado com sucesso.");
+    setCategoria("drum-kit");
+
   }
 
   /* =========================
@@ -263,28 +270,22 @@ export default function PaginaAdminDrumKits() {
             rows={4}
             className="md:col-span-2 rounded-2xl bg-black/30 px-4 py-3"
           />
-<div className="md:col-span-2 flex gap-4">
-  <label className="flex items-center gap-2 cursor-pointer">
-    <input
-      type="radio"
-      name="tipoManual"
-      value="video"
-      checked={tipoManual === "video"}
-      onChange={() => setTipoManual("video")}
-    />
-    Vídeo do YouTube
-  </label>
-
-  <label className="flex items-center gap-2 cursor-pointer">
-    <input
-      type="radio"
-      name="tipoManual"
-      value="texto"
-      checked={tipoManual === "texto"}
-      onChange={() => setTipoManual("texto")}
-    />
-    Manual escrito
-  </label>
+<div className="md:col-span-2 flex flex-col gap-2">
+  <label className="text-xs text-white/60">Tipo de conteúdo de instalação</label>
+  <select
+    value={tipoManual ?? ""}
+    onChange={(e) => {
+      const v = e.target.value as ("" | "video" | "texto");
+      setTipoManual(v === "" ? null : v);
+      setVideoUrl("");
+      setManualTexto("");
+    }}
+    className="rounded-2xl bg-black/30 px-4 py-3"
+  >
+    <option value="">Sem instalação</option>
+    <option value="video">Vídeo (YouTube)</option>
+    <option value="texto">Manual escrito</option>
+  </select>
 </div>
 
 {tipoManual === "video" && (
@@ -307,13 +308,14 @@ export default function PaginaAdminDrumKits() {
 )}
 
 
+
           {/* CAPA */}
           <button
             type="button"
             onClick={() => inputCapaRef.current?.click()}
             className="rounded-2xl bg-black/30 px-4 py-3 text-left"
           >
-            {arquivoCapa ? `✅ ${arquivoCapa.name}` : "Selecionar capa (1200x547)"}
+            {arquivoCapa ? `✅ ${arquivoCapa.name}` : "Selecionar capa (1600×900)"}
           </button>
           <input ref={inputCapaRef} type="file" hidden accept="image/*" onChange={(e) => setArquivoCapa(e.target.files?.[0] ?? null)} />
 
@@ -332,8 +334,41 @@ export default function PaginaAdminDrumKits() {
               <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
               Ativo
             </label>
+            <div className="md:col-span-2 flex gap-4">
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="radio"
+      name="categoriaDrumKit"
+      value="drum-kit"
+      checked={categoria === "drum-kit"}
+      onChange={() => setCategoria("drum-kit")}
+    />
+    Drum Kit
+  </label>
 
-            <button
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="radio"
+      name="categoriaDrumKit"
+      value="sample-kit"
+      checked={categoria === "sample-kit"}
+      onChange={() => setCategoria("sample-kit")}
+    />
+    Sample Kit
+  </label>
+
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="radio"
+      name="categoriaDrumKit"
+      value="midi-kit"
+      checked={categoria === "midi-kit"}
+      onChange={() => setCategoria("midi-kit")}
+    />
+    MIDI Kit
+  </label>
+</div>
+<button
               onClick={criar}
               disabled={criando}
               className="rounded-2xl bg-white px-6 py-3 text-black font-semibold"

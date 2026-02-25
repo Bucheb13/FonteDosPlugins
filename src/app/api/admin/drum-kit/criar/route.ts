@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
+import { registrarAuditoriaAdmin } from "@/lib/admin-auditoria";
 import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 export const runtime = "nodejs";
 
+type CategoriaDrumKit = "drum-kit" | "sample-kit" | "midi-kit";
+type TipoInstalacao = "video" | "texto" | null;
+
 function jsonErro(mensagem: string, status = 400) {
   return NextResponse.json({ erro: mensagem }, { status });
+}
+
+function parseTipoInstalacao(
+  raw: unknown
+): { ok: true; value: TipoInstalacao } | { ok: false } {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (!v) return { ok: true, value: null };
+  if (v === "video" || v === "texto") return { ok: true, value: v };
+  return { ok: false };
 }
 
 function criarClienteR2() {
@@ -33,14 +47,20 @@ function extDaImagem(file: File): string | null {
   return null;
 }
 
+function validarCategoria(raw: string): CategoriaDrumKit | null {
+  const v = raw.trim().toLowerCase();
+  if (v === "drum-kit" || v === "sample-kit" || v === "midi-kit") return v;
+  return null;
+}
+
 export async function POST(req: Request) {
   /* ======================
      AUTH ADMIN
   ====================== */
-  const senha = req.headers.get("x-senha-admin");
-  if (senha !== process.env.SENHA_ADMIN) {
-    return jsonErro("Acesso negado.", 401);
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
+
+  await registrarAuditoriaAdmin(req, { acao: "POST", entidade: "drum-kit/criar" });
 
   const form = await req.formData();
 
@@ -51,32 +71,43 @@ export async function POST(req: Request) {
   const slug = String(form.get("slug") ?? "").trim();
   const subtitulo = String(form.get("subtitulo") ?? "").trim() || null;
   const descricao = String(form.get("descricao") ?? "").trim() || null;
-  const tipoInstalacao = String(form.get("tipo_instalacao") ?? "").trim();
 
-  const conteudoInstalacao =
-    String(form.get("conteudo_instalacao") ?? "").trim() || null;
-  
+  if (!nome || !slug) return jsonErro("Nome e slug são obrigatórios.");
 
+  // ✅ categoria obrigatória
+  const categoriaRaw = String(form.get("categoria") ?? "");
+  const categoria = validarCategoria(categoriaRaw);
+  if (!categoria) {
+    return jsonErro("Categoria inválida (use: drum-kit | sample-kit | midi-kit).");
+  }
+
+  // ✅ instalação opcional (igual plugins)
+  const tipoParsed = parseTipoInstalacao(form.get("tipo_instalacao"));
+  if (!tipoParsed.ok) {
+    return jsonErro("Tipo de instalação inválido (use: video | texto).");
+  }
+
+  let tipoInstalacao: TipoInstalacao = tipoParsed.value;
+
+  const conteudoInstalacaoTrim = String(form.get("conteudo_instalacao") ?? "").trim();
+  const conteudoInstalacao: string | null =
+    conteudoInstalacaoTrim.length > 0 ? conteudoInstalacaoTrim : null;
+
+  // coerência: se tem tipo mas não tem conteúdo -> zera tipo
+  if (tipoInstalacao && !conteudoInstalacao) {
+    tipoInstalacao = null;
+  }
+
+  // se tem conteúdo mas não tem tipo -> erro (mantém banco limpo)
+  if (conteudoInstalacao && !tipoInstalacao) {
+    return jsonErro("Informe o tipo de instalação (video | texto) quando houver conteúdo.");
+  }
 
   const ativo = String(form.get("ativo") ?? "true") === "true";
 
   const capa = form.get("capa");
   const torrent = form.get("torrent");
 
-  if (!nome || !slug) return jsonErro("Nome e slug são obrigatórios.");
-  if (tipoInstalacao !== "video" && tipoInstalacao !== "texto") {
-    return jsonErro("Tipo de instalação inválido.");
-  }
-  
-  if (!conteudoInstalacao) {
-    return jsonErro(
-      tipoInstalacao === "video"
-        ? "URL do vídeo é obrigatória."
-        : "Manual escrito é obrigatório."
-    );
-  }
-  
-  
   if (!(capa instanceof File)) return jsonErro("Capa obrigatória.");
   if (!(torrent instanceof File)) return jsonErro("Torrent obrigatório.");
 
@@ -132,6 +163,8 @@ export async function POST(req: Request) {
   /* ======================
      INSERT SUPABASE
   ====================== */
+  const publicBase = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL!.replace(/\/$/, "");
+
   const { data, error } = await supabase
     .from("drum_kits")
     .insert({
@@ -139,22 +172,19 @@ export async function POST(req: Request) {
       nome,
       subtitulo,
       descricao,
-      tipo_instalacao: tipoInstalacao,
-    conteudo_instalacao: conteudoInstalacao,
-    ativo,
-    imagem_capa_url: `${process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL!.replace(/\/$/, "")}/${chaveCapa}`,
-    r2_chave_arquivo: chaveTorrent,
-  })
-  .select()
-  .single();
+      tipo_instalacao: tipoInstalacao, // ✅ pode ser null
+      conteudo_instalacao: conteudoInstalacao, // ✅ pode ser null
+      ativo,
+      categoria,
+      imagem_capa_url: `${publicBase}/${chaveCapa}`,
+      r2_chave_arquivo: chaveTorrent,
+    })
+    .select()
+    .single();
 
   if (error) {
     console.error("Erro Supabase:", error);
-
-    if (error.code === "23505") {
-      return jsonErro("Slug já está em uso.");
-    }    
-
+    if (error.code === "23505") return jsonErro("Slug já está em uso.");
     return jsonErro("Erro ao criar o drum-kit.");
   }
 

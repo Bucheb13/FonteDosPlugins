@@ -1,0 +1,94 @@
+.pillTabs {
+    --main-color: #ff6ec4;
+    --secondary-color: rgba(0, 255, 255, 0.952);
+    --text-color: rgba(255, 255, 255, 0.75);
+    --pill-bg: rgba(0, 0, 0, 0.35);
+  
+    display: flex;
+    position: relative;
+    border-radius: 999px;
+    padding: 0.5rem;
+    gap: 0.25rem;
+    width: fit-content;
+  
+    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--pill-bg);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 20px rgba(0,0,0,0.55) inset;
+  }
+  
+  .pillTabs input { display: none; }
+  
+  .pillTabs label {
+    position: relative;
+    padding: 0.25rem 1.15rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--text-color);
+    transition: color 0.25s ease, transform 0.25s ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+  
+  .pillTabs label:hover {
+    color: var(--secondary-color);
+    transform: translateY(-1px);
+  }
+  
+  .pillTabs input:checked + label { color: #fff; }
+  
+  .pillIndicator {
+    position: absolute;
+    bottom: 6px;
+    left: 0;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--main-color), var(--secondary-color));
+    opacity: 0;
+    transition: transform 0.25s ease, width 0.25s ease, opacity 0.2s ease;
+    pointer-events: none;
+  }
+  /* =========================
+   PILLTABS — MOBILE FIX
+   ========================= */
+@media (max-width: 640px) {
+  .pillTabs {
+    width: 100%;
+    max-width: 100%;
+
+    /* permite rolar horizontal em vez de cortar */
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    /* deixa o scroll suave no iOS */
+    -webkit-overflow-scrolling: touch;
+
+    /* evita o “grudar” na direita */
+    justify-content: flex-start;
+
+    /* compacto */
+    padding: 0.4rem;
+    gap: 0.2rem;
+  }
+
+  /* esconde scrollbar (sem perder scroll) */
+  .pillTabs::-webkit-scrollbar { height: 0; }
+  .pillTabs { scrollbar-width: none; }
+
+  .pillTabs label {
+    padding: 0.22rem 0.85rem;   /* menor no mobile */
+    font-size: 0.82rem;
+  }
+
+  /* indicador não deve ser “cortado” por padding */
+  .pillIndicator {
+    bottom: 4px;
+    height: 3px;
+  }
+}
+@media (max-width: 640px) {
+  .pillTabs { scroll-snap-type: x mandatory; }
+  .pillTabs label { scroll-snap-align: start; }
+}

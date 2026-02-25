@@ -1,46 +1,68 @@
+﻿import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import DawClient from "./DawClient";
-import type { Metadata } from "next";
+import { criarSupabaseAdmin } from "@/lib/supabase-admin";
+import { absoluteUrl } from "@/lib/site-url";
 
-/* =========================
-   SEO DINÂMICO
-========================= */
-export async function generateMetadata(
-  { params }: { params: Promise<{ slug: string }> }
-): Promise<Metadata> {
+type DawSeo = {
+  slug: string;
+  nome: string;
+  subtitulo: string | null;
+  imagem_capa_url: string | null;
+};
 
-  const { slug } = await params; // ✅ OBRIGATÓRIO
+async function obterDaw(slug: string): Promise<DawSeo | null> {
+  const supabase = criarSupabaseAdmin();
+  const { data } = await supabase
+    .from("daws")
+    .select("slug, nome, subtitulo, imagem_capa_url")
+    .eq("slug", slug)
+    .eq("ativo", true)
+    .maybeSingle();
 
-  console.log("SLUG NO METADATA:", slug);
+  return (data as DawSeo | null) ?? null;
+}
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL}/api/daws?slug=${slug}`,
-    { cache: "no-store" }
-  );
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const daw = await obterDaw(slug);
 
-  if (!res.ok) {
+  if (!daw) {
     return {
-      title: "DAW não encontrada | Fonte dos Plugins",
+      title: "DAW não encontrada | FonteDosPlugins",
       description: "Esta DAW não está disponível.",
+      robots: { index: false, follow: false },
     };
   }
 
-  const { daw } = await res.json();
+  const title = `${daw.nome} | Download DAW | FonteDosPlugins`;
+  const description = daw.subtitulo?.trim() || `Baixe ${daw.nome} agora.`;
+  const canonical = `/daws/${daw.slug}`;
 
   return {
-    title: `${daw.nome} | Download DAW | Fonte dos Plugins`,
-    description: daw.subtitulo ?? `Baixe ${daw.nome} agora.`,
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      title,
+      description,
+      url: absoluteUrl(canonical),
+      type: "article",
+      images: daw.imagem_capa_url ? [{ url: daw.imagem_capa_url }] : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: daw.imagem_capa_url ? [daw.imagem_capa_url] : undefined,
+    },
   };
 }
 
-/* =========================
-   PAGE (SERVER)
-========================= */
-export default async function Page(
-  { params }: { params: Promise<{ slug: string }> }
-) {
-  const { slug } = await params; // ✅ ESSENCIAL
-
-  console.log("SLUG NO PAGE:", slug);
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const daw = await obterDaw(slug);
+  if (!daw) notFound();
 
   return <DawClient slug={slug} />;
 }

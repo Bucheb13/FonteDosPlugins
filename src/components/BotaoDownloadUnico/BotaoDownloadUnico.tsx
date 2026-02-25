@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import "./BotaoDownloadUnico.css";
+
 
 type TipoItem = "plugin" | "daw" | "drum-kit" | "programa";
 
@@ -42,6 +44,7 @@ function parseStatus(json: unknown): {
   };
 }
 
+
 function extrairLiberarEmDoIniciar(json: unknown): string | null {
   if (!json || typeof json !== "object") return null;
 
@@ -55,7 +58,7 @@ function extrairLiberarEmDoIniciar(json: unknown): string | null {
   return typeof t.liberar_em === "string" ? t.liberar_em : null;
 }
 
-export function BotaoDownloadUnico({ slug, tipo, assinanteAtivo = false, className }: Props) {
+export function BotaoDownloadUnico({ slug, tipo, assinanteAtivo = false, className = "" }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [clicando, setClicando] = useState(false);
 
@@ -65,14 +68,14 @@ export function BotaoDownloadUnico({ slug, tipo, assinanteAtivo = false, classNa
 
   const intervaloRef = useRef<number | null>(null);
 
-  function limparIntervalo() {
+  const limparIntervalo = useCallback(() => {
     if (intervaloRef.current !== null) {
       window.clearInterval(intervaloRef.current);
       intervaloRef.current = null;
     }
-  }
+  }, []);
 
-  function iniciarContador(iso: string) {
+  const iniciarContador = useCallback((iso: string) => {
     setLiberarEm(iso);
 
     const inicial = segundosRestantes(iso);
@@ -88,10 +91,17 @@ export function BotaoDownloadUnico({ slug, tipo, assinanteAtivo = false, classNa
         limparIntervalo();
       }
     }, 250);
-  }
+  }, [limparIntervalo]);
 
+  function resetarTimer() {
+    limparIntervalo();
+    setEstado("nao_iniciado");
+    setLiberarEm(null);
+    setRestante(0);
+  }
+  
  // ✅ Função para inativar assinatura expirada
-async function inativarAssinaturaSeExpirada() {
+const inativarAssinaturaSeExpirada = useCallback(async () => {
   try {
     const res = await fetch("/api/assinaturas/me", { method: "GET" });
     if (!res.ok) return;
@@ -114,9 +124,9 @@ async function inativarAssinaturaSeExpirada() {
   } catch {
     // falha silenciosa
   }
-}
+}, []);
 
-  async function buscarStatus() {
+  const buscarStatus = useCallback(async () => {
     setCarregando(true);
     try {
       await inativarAssinaturaSeExpirada(); // verifica assinatura antes de buscar status
@@ -178,13 +188,12 @@ async function inativarAssinaturaSeExpirada() {
     } finally {
       setCarregando(false);
     }
-  }
+  }, [assinanteAtivo, inativarAssinaturaSeExpirada, iniciarContador, limparIntervalo, slug, tipo]);
 
   useEffect(() => {
     void buscarStatus();
     return () => limparIntervalo();
-    // ✅ inclui tipo nas dependências também
-  }, [slug, tipo, assinanteAtivo]);
+  }, [buscarStatus, limparIntervalo]);
 
   async function iniciarGratis() {
     const res = await fetch("/api/download-gratis/iniciar", {
@@ -227,16 +236,23 @@ async function inativarAssinaturaSeExpirada() {
     }
 
     if (res.ok) {
-      const url =
-        jsonRaw && typeof jsonRaw === "object" ? (jsonRaw as Record<string, unknown>).url : null;
+  const url =
+    jsonRaw && typeof jsonRaw === "object"
+      ? (jsonRaw as Record<string, unknown>).url
+      : null;
 
-      if (typeof url !== "string" || !url) {
-        throw new Error("Resposta inválida do servidor (url ausente).");
-      }
+  if (typeof url !== "string" || !url) {
+    throw new Error("Resposta inválida do servidor (url ausente).");
+  }
 
-      window.location.href = url;
-      return;
-    }
+  // ✅ CONSOME o estado "liberado"
+  resetarTimer();
+
+  // dispara o download
+  window.open(url, "_blank", "noopener,noreferrer");
+  return;
+}
+
 
     if (json.liberar_em) {
       const s = segundosRestantes(json.liberar_em);
@@ -288,17 +304,61 @@ async function inativarAssinaturaSeExpirada() {
     return clicando || (!assinanteAtivo && estado === "aguardando");
   }, [clicando, estado, assinanteAtivo]);
 
+    // ✅ Quando estiver aguardando, troca o botão por loader + contador
+    if (!assinanteAtivo && estado === "aguardando") {
+      return (
+        <div className="relative w-full flex items-center justify-center py-6">
+          <div className="relative -translate-y-2">
+            <div className="download-loader2" aria-hidden="true">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <defs>
+                  <mask id="dl2-clipping">
+                    <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                    <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                    <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                    <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                    <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                    <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                    <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                  </mask>
+                </defs>
+              </svg>
+              <div className="dl2-box"></div>
+            </div>
+  
+            {/* contador em cima */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-white font-extrabold tracking-tight text-sm md:text-base">
+                {formatarTempo(restante)}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  
+
+  const tooltipLiberacao = liberarEm ? `Liberado em: ${new Date(liberarEm).toLocaleString("pt-BR")}` : undefined;
+
   return (
     <button
       type="button"
       onClick={() => void aoClicar()}
       disabled={desabilitado}
-      className={
-        className ??
-        "w-full rounded-xl bg-white/10 px-4 py-3 text-sm text-white backdrop-blur transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-      }
+      className={`btn ${desabilitado ? "btn--disabled" : ""} ${className}`.trim()}
+      aria-busy={carregando || clicando}
+      title={tooltipLiberacao}
     >
-      {texto}
+      <strong>{texto}</strong>
+
+      <div id="container-stars">
+        <div id="stars"></div>
+      </div>
+
+      <div id="glow">
+        <div className="circle"></div>
+        <div className="circle"></div>
+      </div>
     </button>
   );
 }

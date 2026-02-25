@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "@/components/admin/admin-contexto";
 
-type TipoManual = "video" | "texto";
+type TipoManual = "video" | "texto" | null;
+
 /* =========================
    TIPOS
 ========================= */
@@ -36,11 +37,10 @@ function slugify(text: string) {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // remove acentos
-    .replace(/[^a-z0-9]+/g, "-")     // troca tudo por -
-    .replace(/(^-|-$)+/g, "");       // remove - do começo/fim
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
 }
-
 
 /* =========================
    PAGE
@@ -58,15 +58,15 @@ export default function PaginaAdminProgramas() {
   const [slug, setSlug] = useState("");
   const [subtitulo, setSubtitulo] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [ativo, setAtivo] = useState(true);
 
+  // ✅ instalação opcional
+  const [tipoManual, setTipoManual] = useState<TipoManual>(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [manualTexto, setManualTexto] = useState("");
+
+  const [ativo, setAtivo] = useState(true);
   const [slugEditadoManualmente, setSlugEditadoManualmente] = useState(false);
 
-
-  const [tipoManual, setTipoManual] = useState<TipoManual>("video");
-  const [manualTexto, setManualTexto] = useState("");
-  
   /* ARQUIVOS */
   const [arquivoCapa, setArquivoCapa] = useState<File | null>(null);
   const [arquivoTorrent, setArquivoTorrent] = useState<File | null>(null);
@@ -79,7 +79,7 @@ export default function PaginaAdminProgramas() {
   /* =========================
      CARREGAR LISTA
   ========================== */
-  async function carregar() {
+  const carregar = useCallback(async () => {
     setMensagem(null);
     if (!senhaAdmin) return setMensagem("Digite a senha do admin.");
 
@@ -96,7 +96,7 @@ export default function PaginaAdminProgramas() {
     if (!res.ok) return setMensagem(json?.erro ?? "Erro ao carregar programas.");
 
     setItens(json.itens ?? []);
-  }
+  }, [senhaAdmin, setMensagem]);
 
   /* HEADER ACTION */
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function PaginaAdminProgramas() {
       aoClicar: carregar,
     });
     return () => setAcaoHeader(null);
-  }, [setAcaoHeader, carregando, senhaAdmin]);
+  }, [setAcaoHeader, carregando, carregar]);
 
   /* =========================
      CRIAR
@@ -122,14 +122,9 @@ export default function PaginaAdminProgramas() {
     if (!slugOk) return setMensagem("Slug obrigatório.");
     if (!arquivoCapa) return setMensagem("Envie a capa.");
     if (!arquivoTorrent) return setMensagem("Envie o torrent.");
-    if (tipoManual === "video" && !videoUrl.trim()) {
-      return setMensagem("Informe a URL do vídeo.");
-    }
-    
-    if (tipoManual === "texto" && !manualTexto.trim()) {
-      return setMensagem("Informe o manual escrito.");
-    }
-    
+
+    const videoOk = videoUrl.trim();
+    const textoOk = manualTexto.trim();
 
     setCriando(true);
 
@@ -138,16 +133,16 @@ export default function PaginaAdminProgramas() {
     fd.append("slug", slugOk);
     fd.append("subtitulo", subtitulo.trim());
     fd.append("descricao", descricao.trim());
-  
-    fd.append("tipo_instalacao", tipoManual);
 
-    if (tipoManual === "video") {
-      fd.append("conteudo_instalacao", videoUrl.trim());
-    } else {
-      fd.append("conteudo_instalacao", manualTexto.trim());
+    // ✅ se tiver conteúdo, manda — senão fica NULL no backend
+    if (tipoManual === "video" && videoOk) {
+      fd.append("tipo_instalacao", "video");
+      fd.append("conteudo_instalacao", videoOk);
+    } else if (tipoManual === "texto" && textoOk) {
+      fd.append("tipo_instalacao", "texto");
+      fd.append("conteudo_instalacao", textoOk);
     }
-    
-    
+
     fd.append("ativo", String(ativo));
     fd.append("capa", arquivoCapa);
     fd.append("torrent", arquivoTorrent);
@@ -169,9 +164,14 @@ export default function PaginaAdminProgramas() {
     setSlug("");
     setSubtitulo("");
     setDescricao("");
+
+    setTipoManual(null);
     setVideoUrl("");
+    setManualTexto("");
+
     setArquivoCapa(null);
     setArquivoTorrent(null);
+
     setMensagem("Programa criado com sucesso.");
   }
 
@@ -208,9 +208,7 @@ export default function PaginaAdminProgramas() {
   ========================== */
   const itensFiltrados = useMemo(() => {
     const f = filtro.toLowerCase();
-    return itens.filter((p) =>
-      `${p.nome} ${p.slug}`.toLowerCase().includes(f)
-    );
+    return itens.filter((p) => `${p.nome} ${p.slug}`.toLowerCase().includes(f));
   }, [itens, filtro]);
 
   /* =========================
@@ -223,31 +221,26 @@ export default function PaginaAdminProgramas() {
         <h2 className="text-xl font-semibold">Criar programa</h2>
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <input
-  placeholder="Nome"
-  value={nome}
-  onChange={(e) => {
-    const valor = e.target.value;
-    setNome(valor);
+          <input
+            placeholder="Nome"
+            value={nome}
+            onChange={(e) => {
+              const valor = e.target.value;
+              setNome(valor);
+              if (!slugEditadoManualmente) setSlug(slugify(valor));
+            }}
+            className="rounded-2xl bg-black/30 px-4 py-3"
+          />
 
-    if (!slugEditadoManualmente) {
-      setSlug(slugify(valor));
-    }
-  }}
-  className="rounded-2xl bg-black/30 px-4 py-3"
-/>
-
-
-<input
-  placeholder="Slug"
-  value={slug}
-  onChange={(e) => {
-    setSlugEditadoManualmente(true);
-    setSlug(slugify(e.target.value));
-  }}
-  className="rounded-2xl bg-black/30 px-4 py-3"
-/>
-
+          <input
+            placeholder="Slug"
+            value={slug}
+            onChange={(e) => {
+              setSlugEditadoManualmente(true);
+              setSlug(slugify(e.target.value));
+            }}
+            className="rounded-2xl bg-black/30 px-4 py-3"
+          />
 
           <textarea
             placeholder="Subtítulo"
@@ -263,49 +256,44 @@ export default function PaginaAdminProgramas() {
             rows={4}
             className="md:col-span-2 rounded-2xl bg-black/30 px-4 py-3"
           />
-<div className="md:col-span-2 flex gap-4">
-  <label className="flex items-center gap-2 cursor-pointer">
-    <input
-      type="radio"
-      name="tipoManual"
-      value="video"
-      checked={tipoManual === "video"}
-      onChange={() => setTipoManual("video")}
-    />
-    Vídeo do YouTube
-  </label>
 
-  <label className="flex items-center gap-2 cursor-pointer">
-    <input
-      type="radio"
-      name="tipoManual"
-      value="texto"
-      checked={tipoManual === "texto"}
-      onChange={() => setTipoManual("texto")}
-    />
-    Manual escrito
-  </label>
-</div>
+          {/* ✅ instalação opcional */}
+          <div className="md:col-span-2 flex flex-col gap-2">
+            <label className="text-xs text-white/60">Tipo de conteúdo de instalação</label>
+            <select
+              value={tipoManual ?? ""}
+              onChange={(e) => {
+                const v = e.target.value as ("" | "video" | "texto");
+                setTipoManual(v === "" ? null : v);
+                setVideoUrl("");
+                setManualTexto("");
+              }}
+              className="rounded-2xl bg-black/30 px-4 py-3"
+            >
+              <option value="">Sem instalação</option>
+              <option value="video">Vídeo do YouTube</option>
+              <option value="texto">Manual escrito</option>
+            </select>
+          </div>
 
-{tipoManual === "video" && (
-  <input
-    placeholder="URL do vídeo do YouTube"
-    value={videoUrl}
-    onChange={(e) => setVideoUrl(e.target.value)}
-    className="md:col-span-2 rounded-2xl bg-black/30 px-4 py-3"
-  />
-)}
+          {tipoManual === "video" && (
+            <input
+              placeholder="URL do vídeo do YouTube"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              className="md:col-span-2 rounded-2xl bg-black/30 px-4 py-3"
+            />
+          )}
 
-{tipoManual === "texto" && (
-  <textarea
-    placeholder="Manual de instalação (texto)"
-    value={manualTexto}
-    onChange={(e) => setManualTexto(e.target.value)}
-    rows={6}
-    className="md:col-span-2 rounded-2xl bg-black/30 px-4 py-3"
-  />
-)}
-
+          {tipoManual === "texto" && (
+            <textarea
+              placeholder="Manual de instalação (texto)"
+              value={manualTexto}
+              onChange={(e) => setManualTexto(e.target.value)}
+              rows={6}
+              className="md:col-span-2 rounded-2xl bg-black/30 px-4 py-3"
+            />
+          )}
 
           {/* CAPA */}
           <button
@@ -313,9 +301,15 @@ export default function PaginaAdminProgramas() {
             onClick={() => inputCapaRef.current?.click()}
             className="rounded-2xl bg-black/30 px-4 py-3 text-left"
           >
-            {arquivoCapa ? `✅ ${arquivoCapa.name}` : "Selecionar capa (1200x547)"}
+            {arquivoCapa ? `✅ ${arquivoCapa.name}` : "Selecionar capa (1600×900)"}
           </button>
-          <input ref={inputCapaRef} type="file" hidden accept="image/*" onChange={(e) => setArquivoCapa(e.target.files?.[0] ?? null)} />
+          <input
+            ref={inputCapaRef}
+            type="file"
+            hidden
+            accept="image/*"
+            onChange={(e) => setArquivoCapa(e.target.files?.[0] ?? null)}
+          />
 
           {/* TORRENT */}
           <button
@@ -325,11 +319,21 @@ export default function PaginaAdminProgramas() {
           >
             {arquivoTorrent ? `✅ ${arquivoTorrent.name}` : "Selecionar torrent"}
           </button>
-          <input ref={inputTorrentRef} type="file" hidden accept=".torrent" onChange={(e) => setArquivoTorrent(e.target.files?.[0] ?? null)} />
+          <input
+            ref={inputTorrentRef}
+            type="file"
+            hidden
+            accept=".torrent"
+            onChange={(e) => setArquivoTorrent(e.target.files?.[0] ?? null)}
+          />
 
           <div className="md:col-span-2 flex justify-between items-center">
             <label className="flex gap-2 items-center">
-              <input type="checkbox" checked={ativo} onChange={(e) => setAtivo(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={ativo}
+                onChange={(e) => setAtivo(e.target.checked)}
+              />
               Ativo
             </label>
 
@@ -357,14 +361,20 @@ export default function PaginaAdminProgramas() {
 
         <div className="space-y-3">
           {itensFiltrados.map((p) => (
-            <div key={p.id} className="flex justify-between items-center rounded-2xl bg-black/20 p-4">
+            <div
+              key={p.id}
+              className="flex justify-between items-center rounded-2xl bg-black/20 p-4"
+            >
               <div>
                 <div className="font-semibold">{p.nome}</div>
                 <div className="text-xs text-white/60">{p.slug}</div>
               </div>
 
               <div className="flex gap-2">
-                <Link href={`/admin/programas/${p.slug}`} className="px-4 py-2 text-xs rounded-xl bg-black/30">
+                <Link
+                  href={`/admin/programas/${p.slug}`}
+                  className="px-4 py-2 text-xs rounded-xl bg-black/30"
+                >
                   Editar
                 </Link>
                 <button

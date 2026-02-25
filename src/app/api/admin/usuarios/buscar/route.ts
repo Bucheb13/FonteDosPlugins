@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
+import { registrarAuditoriaAdmin } from "@/lib/admin-auditoria";
 import { createClient } from "@supabase/supabase-js";
 
 function supabaseAdminAuth() {
@@ -10,10 +12,10 @@ function supabaseAdminAuth() {
 }
 
 export async function POST(req: Request) {
-  const senha = req.headers.get("x-senha-admin");
-  if (!senha || senha !== process.env.SENHA_ADMIN) {
-    return NextResponse.json({ erro: "Não autorizado" }, { status: 401 });
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
+
+  await registrarAuditoriaAdmin(req, { acao: "POST", entidade: "usuarios/buscar" });
 
   const body = await req.json().catch(() => null) as { email?: string } | null;
   const email = (body?.email ?? "").trim().toLowerCase();

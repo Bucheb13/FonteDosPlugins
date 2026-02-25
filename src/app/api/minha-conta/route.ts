@@ -1,5 +1,5 @@
 // src/app/api/minha-conta/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { criarSupabaseServidor } from "@/lib/supabase-servidor";
 
 type StatusAssinatura = "ativa" | "inativa";
@@ -9,6 +9,7 @@ type ItemResolvido = {
   id: string;
   nome: string;
   slug: string;
+  imagem_capa_url: string | null;
   tipo: ItemTipo;
 };
 
@@ -18,7 +19,7 @@ type DownloadFinal = {
   item?: ItemResolvido;
 };
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const supabase = await criarSupabaseServidor();
     const { data: authData } = await supabase.auth.getUser();
@@ -115,16 +116,16 @@ export async function GET(req: NextRequest) {
 
     const [plugins, drumkits, daws, programas] = await Promise.all([
       ids.plugin.length
-        ? supabase.from("plugins").select("id, nome, slug").in("id", ids.plugin)
+        ? supabase.from("plugins").select("id, nome, slug, imagem_capa_url").in("id", ids.plugin)
         : { data: [] },
       ids["drum-kit"].length
-        ? supabase.from("drum_kits").select("id, nome, slug").in("id", ids["drum-kit"])
+        ? supabase.from("drum_kits").select("id, nome, slug, imagem_capa_url").in("id", ids["drum-kit"])
         : { data: [] },
       ids.daw.length
-        ? supabase.from("daws").select("id, nome, slug").in("id", ids.daw)
+        ? supabase.from("daws").select("id, nome, slug, imagem_capa_url").in("id", ids.daw)
         : { data: [] },
       ids.programa.length
-        ? supabase.from("programas").select("id, nome, slug").in("id", ids.programa)
+        ? supabase.from("programas").select("id, nome, slug, imagem_capa_url").in("id", ids.programa)
         : { data: [] },
     ]);
 

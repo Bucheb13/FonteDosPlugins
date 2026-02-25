@@ -1,13 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { CyberToast } from "@/components/CyberToast";// ajuste o caminho conforme sua pasta
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CyberToast } from "@/components/CyberToast";
+import { criarSupabaseNavegador } from "@/lib/supabase-navegador";
+
+import "./ContatoGlow.css";
 
 export default function PaginaContato() {
+  const supabase = useMemo(() => criarSupabaseNavegador(), []);
+
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [status, setStatus] = useState<"idle" | "enviando" | "success" | "error">("idle");
+
+  // evita sobrescrever se o usuário já começou a editar
+  const emailTocado = useRef(false);
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function preencherEmailSeLogado() {
+      const { data, error } = await supabase.auth.getUser();
+      if (!ativo) return;
+
+      if (!error && data.user?.email) {
+        setEmail((atual) => {
+          // só preenche se estiver vazio e se o usuário não mexeu
+          if (emailTocado.current) return atual;
+          return atual.trim() ? atual : data.user!.email!;
+        });
+      }
+    }
+
+    preencherEmailSeLogado();
+
+    return () => {
+      ativo = false;
+    };
+  }, [supabase]);
 
   async function enviarFormulario(e: React.FormEvent) {
     e.preventDefault();
@@ -23,7 +54,7 @@ export default function PaginaContato() {
       if (res.ok) {
         setStatus("success");
         setNome("");
-        setEmail("");
+        // eu NÃO limpo o email pra manter o preenchimento (melhor UX)
         setMensagem("");
       } else {
         setStatus("error");
@@ -33,59 +64,89 @@ export default function PaginaContato() {
     }
   }
 
-  return (
-    <main className="min-h-screen flex items-center justify-center bg-cover bg-center">
-      {/* Card centralizado */}
-      <div className="bg-black/20 backdrop-blur-md rounded-3xl max-w-2xl w-full px-10 py-14 text-white shadow-lg">
-        <h1 className="text-4xl font-bold text-center mb-8">Contato</h1>
-        <p className="mb-6 text-white/70 text-center">
-          Entre em contato conosco. Responderemos o mais rápido possível.
-        </p>
+  function limpar() {
+    setNome("");
+    setEmail("");
+    setMensagem("");
+    emailTocado.current = false;
+  }
 
-        <form onSubmit={enviarFormulario} className="space-y-4">
+  return (
+    <main className="contatoWrap">
+      <div className="contatoCard">
+        <div className="contatoHeader">
+          <h1 className="contatoTitle">Contato</h1>
+          <p className="contatoSub">
+            Entre em contato conosco. Responderemos o mais rápido possível.
+          </p>
+        </div>
+
+        <form onSubmit={enviarFormulario} className="formGrid">
           <div>
-            <label className="block text-sm mb-1">Nome</label>
+            <label className="lb" htmlFor="nome">Nome</label>
             <input
+              id="nome"
               type="text"
               required
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              className="w-full rounded-md border border-white/20 bg-black/30 px-3 py-2 text-white focus:ring-2 focus:ring-purple-400"
+              className="infos"
+              placeholder="Seu nome"
+              autoComplete="name"
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Email</label>
+            <label className="lb" htmlFor="email">Email</label>
             <input
+              id="email"
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-white/20 bg-black/30 px-3 py-2 text-white focus:ring-2 focus:ring-purple-400"
+              onChange={(e) => {
+                emailTocado.current = true;
+                setEmail(e.target.value);
+              }}
+              className="infos"
+              placeholder="seuemail@exemplo.com"
+              autoComplete="email"
             />
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Mensagem</label>
+            <label className="lb" htmlFor="mensagem">Mensagem</label>
             <textarea
+              id="mensagem"
               required
               value={mensagem}
               onChange={(e) => setMensagem(e.target.value)}
-              className="w-full rounded-md border border-white/20 bg-black/30 px-3 py-2 text-white focus:ring-2 focus:ring-purple-400"
-              rows={5}
+              className="infos"
+              placeholder="Escreva sua mensagem..."
+              rows={6}
             />
           </div>
 
-          <button
-            type="submit"
-            className="w-full rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 px-5 py-3 font-semibold text-black hover:scale-105 transition"
-          >
-            {status === "enviando" ? "Enviando..." : "Enviar"}
-          </button>
+          <div className="btnRow">
+            <button
+              type="submit"
+              className="glowBtn"
+              disabled={status === "enviando"}
+            >
+              {status === "enviando" ? "Enviando..." : "Enviar"}
+            </button>
+
+            <button
+              type="button"
+              className="glowBtn glowBtnDanger"
+              disabled={status === "enviando"}
+              onClick={limpar}
+            >
+              Limpar
+            </button>
+          </div>
         </form>
       </div>
 
-      {/* CyberToast */}
       {status === "success" && (
         <CyberToast
           message="Mensagem enviada com sucesso!"

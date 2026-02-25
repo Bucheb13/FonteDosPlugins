@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade | FonteDosPlugins",
   description:
     "Saiba como o FonteDosPlugins coleta, utiliza e protege suas informações pessoais. Leia nossa política de privacidade.",
+  alternates: {
+    canonical: "/privacidade",
+  },
+  openGraph: {
+    title: "Política de Privacidade | FonteDosPlugins",
+    description: "Saiba como o FonteDosPlugins coleta, utiliza e protege suas informações pessoais.",
+    url: absoluteUrl("/privacidade"),
+    type: "article",
+  },
 };
 
 export default function PoliticaDePrivacidade() {

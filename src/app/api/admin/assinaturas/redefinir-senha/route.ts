@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { autorizarAdminOuErro } from "@/lib/admin-auth";
+import { registrarAuditoriaAdmin } from "@/lib/admin-auditoria";
 import { createClient, type User } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
@@ -13,10 +15,10 @@ function pegarEmail(user: User | null): string | null {
 }
 
 export async function POST(req: Request) {
-  const senhaAdmin = req.headers.get("x-senha-admin");
-  if (!senhaAdmin || senhaAdmin !== process.env.SENHA_ADMIN) {
-    return jsonErro("Acesso negado.", 401);
-  }
+  const negado = await autorizarAdminOuErro(req);
+  if (negado) return negado;
+
+  await registrarAuditoriaAdmin(req, { acao: "POST", entidade: "assinaturas/redefinir-senha" });
 
   const body = (await req.json().catch(() => null)) as {
     usuarioId?: string;
@@ -51,14 +53,13 @@ export async function POST(req: Request) {
     return jsonErro("Usuário não possui email.", 404);
   }
 
-  const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/redefinir-senha`;
-await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const redirectTo = siteUrl ? `${siteUrl.replace(/\/+$/, "")}/redefinir-senha` : undefined;
 
-  // 2) tentar enviar email
-  const { error: resetErr } =
-    await supabaseAdmin.auth.resetPasswordForEmail(email, {
-      redirectTo,
-    });
+  // 2) enviar email de recovery uma unica vez
+  const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
 
   // 3) gerar link de recovery (debug / fallback)
   const { data: linkData, error: linkErr } =
@@ -69,12 +70,13 @@ await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
     });
 
   const actionLink = linkData?.properties?.action_link ?? null;
+  const podeExporActionLink = process.env.NODE_ENV !== "production";
 
   if (resetErr) {
     return NextResponse.json({
       ok: false,
       erro: resetErr.message,
-      action_link: actionLink,
+      action_link: podeExporActionLink ? actionLink : null,
       aviso:
         "Email pode não ter sido enviado (SMTP/redirect/spam). Use o action_link para testar.",
     });
@@ -90,6 +92,6 @@ await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
 
   return NextResponse.json({
     ok: true,
-    action_link: actionLink,
+    action_link: podeExporActionLink ? actionLink : null,
   });
 }

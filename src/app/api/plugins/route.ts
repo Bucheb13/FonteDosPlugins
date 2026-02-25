@@ -4,6 +4,7 @@ import { criarSupabaseAdmin } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 
 type TipoInstalacao = "video" | "texto";
+type Categoria = "efeitos" | "instrumentais";
 
 type PluginsPublico = {
   id: string;
@@ -15,6 +16,7 @@ type PluginsPublico = {
   tipo_instalacao: TipoInstalacao;
   conteudo_instalacao: string | null;
   ativo: boolean;
+  categoria: Categoria | null; // ✅ agora vem
 };
 
 export async function GET(req: Request) {
@@ -22,15 +24,17 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
 
   const slug = url.searchParams.get("slug");
-  const q: string | null = url.searchParams.get("q"); // ✅ declara o parâmetro de pesquisa
+  const q = url.searchParams.get("q");
+  const categoria = url.searchParams.get("categoria"); // "efeitos" | "instrumentais"
+
+  const selectCols =
+    "id, slug, nome, subtitulo, imagem_capa_url, descricao, tipo_instalacao, conteudo_instalacao, ativo, categoria";
 
   // ✅ CASO 1: obter 1 item por slug
   if (slug) {
     const { data, error } = await supabase
       .from("plugins")
-      .select(
-        "id, slug, nome, subtitulo, imagem_capa_url, descricao, tipo_instalacao, conteudo_instalacao, ativo"
-      )
+      .select(selectCols)
       .eq("slug", slug)
       .eq("ativo", true)
       .maybeSingle();
@@ -41,17 +45,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ plugin: data as PluginsPublico });
   }
 
-  // ✅ CASO 2: listar todos ou filtrar por pesquisa
+  // ✅ CASO 2: listar todos ou filtrar por pesquisa/categoria
   let query = supabase
     .from("plugins")
-    .select(
-      "id, slug, nome, subtitulo, imagem_capa_url, descricao, tipo_instalacao, conteudo_instalacao, ativo"
-    )
+    .select(selectCols)
     .eq("ativo", true)
     .order("criado_em", { ascending: false });
 
+  // ✅ filtro categoria (se veio)
+  if (categoria) {
+    query = query.eq("categoria", categoria);
+  }
+
+  // ✅ pesquisa em nome e subtitulo
   if (q && q.length > 0) {
-    // pesquisa em nome e subtitulo
     query = query.or(`nome.ilike.%${q}%,subtitulo.ilike.%${q}%`);
   }
 
