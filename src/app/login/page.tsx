@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { criarSupabaseNavegador } from "@/lib/supabase-navegador";
 import { CyberToast } from "@/components/CyberToast";
+import ModalStageFX from "@/components/ModalStageFX";
 
 import "./LoginCard.css";
 
@@ -148,6 +149,8 @@ export default function PaginaLogin() {
 
   return (
     <main className="loginWrap">
+      <div className="absolute inset-0 modal-stage-vignette pointer-events-none" />
+      <ModalStageFX intensity={0.72} />
       <div className="bgNoise" />
 
       <div className="cardOuter">

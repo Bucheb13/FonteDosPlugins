@@ -477,36 +477,36 @@ section .container::after {
   --y: calc(var(--my) * 100%);
 
   background:
-    radial-gradient(140px 140px at var(--x) var(--y),
-      rgba(var(--fx-a), .12),
-      rgba(var(--fx-a), .05) 32%,
-      transparent 62%),
-    radial-gradient(260px 200px at calc(var(--x) + 8%) calc(var(--y) - 6%),
-      rgba(var(--fx-b), .06),
-      transparent 70%);
+    radial-gradient(180px 180px at var(--x) var(--y),
+      rgba(var(--fx-a), .15),
+      rgba(var(--fx-a), .06) 35%,
+      transparent 70%),
+    radial-gradient(320px 240px at calc(var(--x) + 8%) calc(var(--y) - 6%),
+      rgba(var(--fx-b), .08),
+      transparent 76%);
   mix-blend-mode: screen;
-  filter: blur(8px);
-  opacity: .9;
+  filter: blur(12px) saturate(1.03);
+  opacity: .78;
 }
 
 
 /* canvas esticado: render interno menor (feito no ts) */
 .modal-stage-canvas{
-  opacity: .78;
+  opacity: .72;
   mix-blend-mode: screen;
-  filter: saturate(1.08) contrast(1.05);
+  filter: saturate(1.06) contrast(1.03);
 }
 
 
 /* heat na base do viewport (fora do card) */
 .modal-stage-heat{
   background:
-    radial-gradient(circle at 20% 100%, rgba(255,90,0,.20), transparent 55%),
-    radial-gradient(circle at 55% 100%, rgba(255,0,120,.14), transparent 60%),
-    radial-gradient(circle at 85% 100%, rgba(0,246,255,.12), transparent 60%);
+    radial-gradient(circle at 20% 100%, rgba(255,90,0,.13), transparent 60%),
+    radial-gradient(circle at 55% 100%, rgba(255,0,120,.10), transparent 64%),
+    radial-gradient(circle at 85% 100%, rgba(0,246,255,.10), transparent 64%);
   mix-blend-mode: screen;
-  filter: blur(18px);
-  opacity: .85;
+  filter: blur(20px);
+  opacity: .62;
 }
 
 /* vinheta cinematográfica global */
